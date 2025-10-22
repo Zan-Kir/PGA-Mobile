@@ -8,7 +8,7 @@ import '../widgets/bottom_navigation.dart';
 import '../services/local_db.dart';
 import '../services/sync_service.dart';
 
-const BACKEND_BASE = 'http://192.168.0.248:3000';
+const BACKEND_BASE = 'http://192.168.50.54:3000';
 
 class CreateProjectScreen extends StatefulWidget {
   const CreateProjectScreen({super.key});
@@ -179,7 +179,20 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
             final steps = doc['etapas'] as List?;
             if (steps != null) {
               _projectSteps.clear();
-              _projectSteps.addAll(steps.map((e) => Map<String, dynamic>.from(e as Map)).toList());
+              // normalize verification values from saved draft
+              _projectSteps.addAll(steps.map((raw) {
+                final Map<String, dynamic> e = Map<String, dynamic>.from(raw as Map);
+                final v = e['verification'] ?? e['status_verificacao'] ?? e['statusVerificacao'];
+                if (v == null) {
+                  e['verification'] = null;
+                } else {
+                  final sv = v.toString();
+                  if (sv.toLowerCase().contains('requer')) e['verification'] = 'RequerAcao';
+                  else if (sv.toLowerCase().contains('ok')) e['verification'] = 'OK';
+                  else e['verification'] = null;
+                }
+                return e;
+              }).toList());
             }
             final probs = doc['problemas'] as List?;
             if (probs != null) {
@@ -237,11 +250,25 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
         _users = data.map((e) => Map<String, dynamic>.from(e)).toList();
       }
 
-      // entregáveis
-      final deliversRes = await http.get(Uri.parse('$BACKEND_BASE/delivers'), headers: headers);
+      // entregáveis - backend expõe rota '/deliverable' e os objetos usam campos como entregavel_id/entregavel_numero/descricao
+      final deliversRes = await http.get(Uri.parse('$BACKEND_BASE/deliverable'), headers: headers);
       if (deliversRes.statusCode == 200) {
         final List data = jsonDecode(deliversRes.body) as List;
-        _deliverables = data.map((e) => Map<String, dynamic>.from(e)).toList();
+        // normalize objects so the mobile UI can use 'id' and 'titulo' keys
+        _deliverables = data.map((raw) {
+          final Map<String, dynamic> item = Map<String, dynamic>.from(raw as Map);
+          // possible id fields
+          final dynamic idVal = item['entregavel_id'] ?? item['id'] ?? item['deliverable_id'];
+          final int? id = _toInt(idVal);
+          // possible title/description fields
+          final String titulo = (item['descricao'] ?? item['detalhes'] ?? item['titulo'] ?? item['nome'] ?? '').toString();
+          return {
+            'id': id,
+            'titulo': titulo,
+            // keep original data for fallback
+            ...item,
+          };
+        }).toList();
       }
 
       final problemsRes = await http.get(Uri.parse('$BACKEND_BASE/problem-situation'), headers: headers);
@@ -470,7 +497,8 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
         'referenceNumber': '',
         'plannedDate': '',
         'actualDate': '',
-        'verification': '',
+        // use canonical values for status_verificacao (backend enum): 'Pendente', 'OK', 'RequerAcao'
+        'verification': null,
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
       });
     });
@@ -917,16 +945,6 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                 'Etapas do Projeto/Processo',
                 [
                   ..._projectSteps.map((step) => _buildProjectStepField(step)),
-                  if (_projectSteps.isEmpty)
-                    _buildProjectStepField({
-                      'description': '',
-                      'deliverable': '',
-                      'referenceNumber': '',
-                      'plannedDate': '',
-                      'actualDate': '',
-                      'verification': '',
-                      'id': 'temp',
-                    }),
                   const SizedBox(height: 16),
                   Align(
                     alignment: Alignment.centerRight,
@@ -1286,15 +1304,14 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                   );
                 }),
               ),
-              if (person['id'] != 'temp')
-                Builder(builder: (_) {
-                  final isFirstResponsible = _responsiblePeople.isNotEmpty && _responsiblePeople.first['id'] == person['id'];
-                  if (isFirstResponsible) return const SizedBox.shrink();
-                  return IconButton(
-                    icon: const Icon(Icons.close, color: Colors.red),
-                    onPressed: () => onRemove(person['id']),
-                  );
-                }),
+              Builder(builder: (_) {
+                final isFirstResponsible = _responsiblePeople.isNotEmpty && _responsiblePeople.first['id'] == person['id'];
+                if (isFirstResponsible) return const SizedBox.shrink();
+                return IconButton(
+                  icon: const Icon(Icons.close, color: Colors.red),
+                  onPressed: () => onRemove(person['id']),
+                );
+              }),
             ],
           ),
 
@@ -1355,11 +1372,10 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                   fontSize: 16,
                 ),
               ),
-              if (step['id'] != 'temp')
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.red),
-                  onPressed: () => _removeProjectStep(step['id']),
-                ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.red),
+                onPressed: () => _removeProjectStep(step['id']),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1419,38 +1435,42 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Text('Verificação: '),
+              const Text('Verificação:'),
+              const SizedBox(width: 8),
               Row(
                 children: [
                   Radio<String>(
                     value: 'OK',
-                    groupValue: step['verification'],
+                    groupValue: step['verification'] as String?,
                     onChanged: (value) {
                       setState(() {
                         step['verification'] = value;
                       });
                     },
                   ),
+                  const SizedBox(width: 4),
                   const Text('OK'),
                 ],
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 8),
               Row(
                 children: [
                   Radio<String>(
-                    value: 'Requer Ação',
-                    groupValue: step['verification'],
+                    value: 'RequerAcao',
+                    groupValue: step['verification'] as String?,
                     onChanged: (value) {
                       setState(() {
                         step['verification'] = value;
                       });
                     },
                   ),
+                  const SizedBox(width: 4),
                   const Text('Requer Ação'),
                 ],
               ),
             ],
           ),
+          const SizedBox.shrink(),
         ],
       ),
     );

@@ -13,7 +13,7 @@ import 'src/screens/create_project_screen.dart';
 import 'src/screens/settings_screen.dart';
 import 'src/widgets/splash_widget.dart';
 
-const BACKEND_BASE = 'http://192.168.0.248:3000';
+const BACKEND_BASE = 'http://192.168.50.54:3000';
 const String APP_LOGO_ASSET = 'assets/icons/app_icon.png';
 
 // ensure splash shows at least this duration
