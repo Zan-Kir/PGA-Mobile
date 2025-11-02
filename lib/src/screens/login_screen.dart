@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 // ...existing imports...
 import 'package:provider/provider.dart';
 import '../services/auth_provider.dart';
+import '../services/config.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
@@ -39,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text;
 
     try {
-      final url = Uri.parse('http://192.168.50.54:3000/auth/login');
+      final url = Uri.parse(AppConfig.loginEndpoint);
       final res = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -55,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final auth = Provider.of<AuthProvider>(context, listen: false);
           await auth.setToken(token as String, refresh: refresh as String?);
           try {
-            final meRes = await http.get(Uri.parse('http://192.168.50.54:3000/auth/me'), headers: {'Authorization': 'Bearer $token'});
+            final meRes = await http.get(Uri.parse(AppConfig.meEndpoint), headers: {'Authorization': 'Bearer $token'});
             if (meRes.statusCode == 200) {
               final userObj = jsonDecode(meRes.body) as Map<String, dynamic>;
               await auth.setToken(token, refresh: refresh, userData: userObj);

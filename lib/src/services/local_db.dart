@@ -164,6 +164,43 @@ class LocalDB {
   Future<int> saveProject(String data, {String? localId, int? serverId}) async {
     final database = await db;
     final now = DateTime.now().millisecondsSinceEpoch;
+    
+    // Se temos server_id, verificar se já existe e atualizar
+    if (serverId != null) {
+      final existing = await database.query('projects', where: 'server_id = ?', whereArgs: [serverId]);
+      if (existing.isNotEmpty) {
+        // Atualizar projeto existente
+        return await database.update(
+          'projects',
+          {
+            'data': data,
+            'updated_at': now,
+          },
+          where: 'server_id = ?',
+          whereArgs: [serverId],
+        );
+      }
+    }
+    
+    // Se temos local_id, verificar se já existe e atualizar
+    if (localId != null) {
+      final existing = await database.query('projects', where: 'local_id = ?', whereArgs: [localId]);
+      if (existing.isNotEmpty) {
+        // Atualizar projeto existente
+        return await database.update(
+          'projects',
+          {
+            'data': data,
+            'updated_at': now,
+            'server_id': serverId,
+          },
+          where: 'local_id = ?',
+          whereArgs: [localId],
+        );
+      }
+    }
+    
+    // Inserir novo projeto
     return await database.insert('projects', {
       'local_id': localId,
       'server_id': serverId,
@@ -175,6 +212,23 @@ class LocalDB {
   Future<List<Map<String, dynamic>>> getProjects() async {
     final database = await db;
     return await database.query('projects', orderBy: 'updated_at DESC');
+  }
+
+  Future<int> clearProjects() async {
+    final database = await db;
+    return await database.delete('projects');
+  }
+
+  Future<int> clearProjectsFromServer() async {
+    final database = await db;
+    // Remove apenas projetos que vieram do servidor (têm server_id)
+    return await database.delete('projects', where: 'server_id IS NOT NULL');
+  }
+
+  Future<int> removeLocalProject(String localId) async {
+    final database = await db;
+    // Remove projeto local que ainda não tem server_id
+    return await database.delete('projects', where: 'local_id = ? AND server_id IS NULL', whereArgs: [localId]);
   }
 
   Future<int> updateProjectServerId(String localId, int serverId) async {

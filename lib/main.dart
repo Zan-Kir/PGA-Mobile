@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'src/services/app_init.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'src/services/auth_provider.dart';
+import 'src/services/config.dart';
 import 'src/theme/app_theme.dart';
 import 'src/screens/login_screen.dart';
 import 'src/screens/dashboard_screen.dart';
@@ -13,34 +13,28 @@ import 'src/screens/create_project_screen.dart';
 import 'src/screens/settings_screen.dart';
 import 'src/widgets/splash_widget.dart';
 
-const BACKEND_BASE = 'http://192.168.50.54:3000';
-const String APP_LOGO_ASSET = 'assets/icons/app_icon.png';
-
-// ensure splash shows at least this duration
-final ValueNotifier<bool> minSplashDone = ValueNotifier<bool>(false);
+final ValueNotifier<bool> appInitialized = ValueNotifier<bool>(false);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final auth = AuthProvider(baseUrl: BACKEND_BASE);
+  
+  final auth = AuthProvider(baseUrl: AppConfig.baseUrl);
   await auth.loadFromStorage();
+
+  () async {
+    try {
+      await AppInit().initialize(AppConfig.baseUrl);
+    } catch (e) {
+      debugPrint('AppInit failed: $e');
+    } finally {
+      appInitialized.value = true;
+    }
+  }();
 
   runApp(ChangeNotifierProvider.value(
     value: auth,
     child: const MyApp(),
   ));
-
-  // start minimum splash timer (20s) after app starts
-  Future.delayed(const Duration(seconds: 20)).then((_) {
-    minSplashDone.value = true;
-  });
-
-  () async {
-    try {
-      await AppInit().initialize(BACKEND_BASE);
-    } catch (e) {
-      debugPrint('AppInit failed: $e');
-    }
-  }();
 }
 
 
@@ -51,16 +45,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
     return ValueListenableBuilder<bool>(
-      valueListenable: minSplashDone,
-      builder: (context, minDone, _) {
-        final showSplash = auth.isLoading || !minDone;
+      valueListenable: appInitialized,
+      builder: (context, initialized, _) {
+        final showSplash = !initialized || auth.isLoading;
         if (showSplash) {
           return MaterialApp(
             title: 'PGA 2025 - Fatec Votorantim',
             theme: AppTheme.lightTheme,
             home: const Scaffold(
               body: SplashWidget(
-                logoAsset: APP_LOGO_ASSET,
+                logoAsset: AppConfig.appLogoAsset,
                 backgroundAsset: 'assets/images/votorantim_inaugura-1047641.png',
               ),
             ),

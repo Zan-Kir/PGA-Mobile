@@ -47,23 +47,20 @@ class SplashWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // background image asset
         Positioned.fill(
           child: Image.asset(
             backgroundAsset,
             fit: BoxFit.cover,
           ),
         ),
-        // overlay for contrast
         Positioned.fill(
-          child: Container(color: Colors.black.withOpacity(0.35)),
+          child: Container(color: Colors.black.withValues(alpha: 0.35)),
         ),
         Center(
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
               const Spacer(flex: 2),
-              // app logo (asset)
               Container(
                 width: 120,
                 height: 120,
@@ -78,7 +75,6 @@ class SplashWidget extends StatelessWidget {
                       logoAsset,
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) {
-                        // fallback to default icon if asset missing
                         return const Icon(
                           Icons.flutter_dash,
                           size: 56,
@@ -90,12 +86,11 @@ class SplashWidget extends StatelessWidget {
                 ),
               ),
               const Spacer(flex: 3),
-              // bottom-aligned indicator and text inside Padding to avoid touching edge
-              Padding(
-                padding: const EdgeInsets.only(bottom: 40.0),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 120.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     CircularProgressIndicator(
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),

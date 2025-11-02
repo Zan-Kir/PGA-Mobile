@@ -4,11 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import '../services/auth_storage.dart';
+import '../services/config.dart';
 import '../widgets/bottom_navigation.dart';
 import '../services/local_db.dart';
 import '../services/sync_service.dart';
-
-const BACKEND_BASE = 'http://192.168.50.54:3000';
 
 class CreateProjectScreen extends StatefulWidget {
   const CreateProjectScreen({super.key});
@@ -31,65 +30,41 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   final _resourceSourceController = TextEditingController();
   
   // Variáveis de estado
-  String _selectedThematicAxis = '01 - Sustentabilidade e Meio Ambiente';
-  String _selectedProjectId = 'cat 1.01 - Recursos Inumanos';
+  String _selectedThematicAxis = '';
+  String _selectedProjectId = '';
   String _selectedYear = '';
   String _selectedPriority = '';
   bool _mandatoryInclusion = false;
   bool _mandatorySustainability = false;
   bool _isLoading = false;
 
-  // Listas para dropdowns
-  final List<String> _thematicAxisOptions = [
-    '01 - Sustentabilidade e Meio Ambiente',
-    '02 - Inovação e Tecnologia',
-    '03 - Gestão e Processos',
-  ];
-  
-  final List<String> _projectIdOptions = [
-    'cat 1.01 - Recursos Inumanos',
-    'cat 1.02 - Gestão de Resíduos',
-    'cat 1.03 - Energia Renovável',
-  ];
-  
-  final List<String> _yearOptions = [
-    '2024',
-    '2025',
-    '2026',
-  ];
-  
-  final List<String> _priorityOptions = [
-    'Alta',
-    'Média',
-    'Baixa',
-  ];
-
-  // mappings name -> id (populated from server)
+  // Mapeamentos de nome -> id (populados do servidor)
   final Map<String, int> _eixoNameToId = {};
   final Map<String, int> _temaNameToId = {};
   final Map<String, int> _priorityNameToId = {};
-  // PGA year options and mapping year->pga_id
+  
+  // Opções de PGA e mapeamento direto ano -> objeto completo
   final List<String> _pgaOptions = [];
-  final Map<String, int> _pgaYearToId = {};
-  // store full PGA objects returned from server so we can use the id later
-  final List<Map<String, dynamic>> _pgaObjects = [];
-  // direct lookup year -> full PGA object (safer / faster)
   final Map<String, Map<String, dynamic>> _pgaByYear = {};
   
-  // Listas para pessoas e etapas
+  // Listas dinâmicas (pessoas, etapas, problemas)
   final List<Map<String, dynamic>> _responsiblePeople = [];
   final List<Map<String, dynamic>> _collaborators = [];
   final List<Map<String, dynamic>> _projectSteps = [];
   final List<Map<String, dynamic>> _problemSituations = [];
-  // dados carregados do backend
+  
+  // Opções carregadas do backend
+  final List<String> _thematicAxisOptions = [];
+  final List<String> _projectIdOptions = [];
+  final List<String> _priorityOptions = [];
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _deliverables = [];
   List<Map<String, dynamic>> _problemOptions = [];
   List<Map<String, dynamic>> _workloadTypes = [];
-  // local DB instance for drafts and sync
+  
+  // Database local e autosave
   final LocalDB _localDb = LocalDB();
   String? _draftLocalId;
-  // autosave timer
   Timer? _autosaveTimer;
 
   // helper: safely convert dynamic id (num or string) to int
@@ -165,6 +140,9 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
             _selectedProjectId = doc['tema'] ?? _selectedProjectId;
             _selectedYear = doc['ano'] ?? _selectedYear;
             _selectedPriority = doc['prioridade'] ?? _selectedPriority;
+            // checkboxes
+            _mandatoryInclusion = doc['obrigatorio_inclusao'] ?? false;
+            _mandatorySustainability = doc['obrigatorio_sustentabilidade'] ?? false;
             // lists
             final rp = doc['responsaveis'] as List?;
             if (rp != null) {
@@ -222,6 +200,8 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
         'tema': _selectedProjectId,
         'ano': _selectedYear,
         'prioridade': _selectedPriority,
+        'obrigatorio_inclusao': _mandatoryInclusion,
+        'obrigatorio_sustentabilidade': _mandatorySustainability,
         'responsaveis': _responsiblePeople,
         'colaboradores': _collaborators,
         'etapas': _projectSteps,
@@ -244,14 +224,14 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   Future<void> _loadPeopleAndDeliverables() async {
     try {
       final headers = await _authHeaders();
-      final usersRes = await http.get(Uri.parse('$BACKEND_BASE/users'), headers: headers);
+      final usersRes = await http.get(Uri.parse('${AppConfig.baseUrl}/users'), headers: headers);
       if (usersRes.statusCode == 200) {
         final List data = jsonDecode(usersRes.body) as List;
         _users = data.map((e) => Map<String, dynamic>.from(e)).toList();
       }
 
       // entregáveis - backend expõe rota '/deliverable' e os objetos usam campos como entregavel_id/entregavel_numero/descricao
-      final deliversRes = await http.get(Uri.parse('$BACKEND_BASE/deliverable'), headers: headers);
+      final deliversRes = await http.get(Uri.parse('${AppConfig.baseUrl}/deliverable'), headers: headers);
       if (deliversRes.statusCode == 200) {
         final List data = jsonDecode(deliversRes.body) as List;
         // normalize objects so the mobile UI can use 'id' and 'titulo' keys
@@ -271,14 +251,14 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
         }).toList();
       }
 
-      final problemsRes = await http.get(Uri.parse('$BACKEND_BASE/problem-situation'), headers: headers);
+      final problemsRes = await http.get(Uri.parse('${AppConfig.baseUrl}/problem-situation'), headers: headers);
       if (problemsRes.statusCode == 200) {
         final List data = jsonDecode(problemsRes.body) as List;
         _problemOptions = data.map((e) => Map<String, dynamic>.from(e)).toList();
       }
 
       // workload HAE (tipos de vínculo) - usado para colaboradores
-      final workloadRes = await http.get(Uri.parse('$BACKEND_BASE/workload-hae'), headers: headers);
+      final workloadRes = await http.get(Uri.parse('${AppConfig.baseUrl}/workload-hae'), headers: headers);
       if (workloadRes.statusCode == 200) {
         final List data = jsonDecode(workloadRes.body) as List;
         _workloadTypes = data.map((e) => Map<String, dynamic>.from(e)).toList();
@@ -309,7 +289,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   Future<void> _loadEixos() async {
     try {
       final headers = await _authHeaders();
-      final res = await http.get(Uri.parse('$BACKEND_BASE/thematic-axis'), headers: headers);
+      final res = await http.get(Uri.parse('${AppConfig.baseUrl}/thematic-axis'), headers: headers);
       if (res.statusCode == 200) {
         final List data = jsonDecode(res.body) as List;
         final List<String> opts = [];
@@ -335,7 +315,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   Future<void> _loadTemas() async {
     try {
       final headers = await _authHeaders();
-      final res = await http.get(Uri.parse('$BACKEND_BASE/themes'), headers: headers);
+      final res = await http.get(Uri.parse('${AppConfig.baseUrl}/themes'), headers: headers);
       if (res.statusCode == 200) {
         final List data = jsonDecode(res.body) as List;
         final List<String> opts = [];
@@ -365,7 +345,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   Future<void> _loadPriorities() async {
     try {
       final headers = await _authHeaders();
-      final res = await http.get(Uri.parse('$BACKEND_BASE/priority-action'), headers: headers);
+      final res = await http.get(Uri.parse('${AppConfig.baseUrl}/priority-action'), headers: headers);
       if (res.statusCode == 200) {
         final List data = jsonDecode(res.body) as List;
         final List<String> opts = [];
@@ -389,29 +369,22 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   Future<void> _loadPgas() async {
     try {
       final headers = await _authHeaders();
-      final res = await http.get(Uri.parse('$BACKEND_BASE/pga'), headers: headers);
+      final res = await http.get(Uri.parse('${AppConfig.baseUrl}/pga'), headers: headers);
       if (res.statusCode == 200) {
         final List data = jsonDecode(res.body) as List;
         final List<String> opts = [];
-        _pgaObjects.clear();
         _pgaByYear.clear();
-        _pgaYearToId.clear();
+        
         for (final raw in data) {
           final item = Map<String, dynamic>.from(raw);
-          _pgaObjects.add(item);
           final ano = item['ano']?.toString() ?? '';
           final titulo = ano.isNotEmpty ? ano : (item['titulo']?.toString() ?? 'PGA');
           if (!opts.contains(titulo)) opts.add(titulo);
           _pgaByYear[titulo] = item;
-          final idVal = item['pga_id'] ?? item['id'];
-          final pgaId = _toInt(idVal);
-          if (pgaId != null) _pgaYearToId[titulo] = pgaId;
         }
+        
         setState(() {
           _pgaOptions
-            ..clear()
-            ..addAll(opts);
-          _yearOptions
             ..clear()
             ..addAll(opts);
           if (opts.isNotEmpty) _selectedYear = opts.first;
@@ -422,12 +395,69 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     }
   }
 
+  /// Limpa todos os campos do formulário e rascunhos
+  Future<void> _clearForm() async {
+    // Remover rascunho do banco de dados primeiro
+    if (_draftLocalId != null) {
+      try {
+        await _localDb.deleteDraftByLocalId(_draftLocalId!);
+        debugPrint('✅ Rascunho removido com sucesso');
+      } catch (e) {
+        debugPrint('❌ Erro ao remover rascunho: $e');
+      }
+    }
+    
+    setState(() {
+      // Limpar controladores de texto
+      _nameController.clear();
+      _descriptionController.clear();
+      _justificationController.clear();
+      _objectivesController.clear();
+      _startDateController.clear();
+      _endDateController.clear();
+      _costController.text = 'R\$ 0,00';
+      _resourceSourceController.clear();
+      
+      // Resetar checkboxes
+      _mandatoryInclusion = false;
+      _mandatorySustainability = false;
+      
+      // Limpar listas de pessoas, etapas e problemas
+      _responsiblePeople.clear();
+      _collaborators.clear();
+      _projectSteps.clear();
+      _problemSituations.clear();
+      
+      // Resetar ID do rascunho
+      _draftLocalId = null;
+      
+      // Resetar selects para primeira opção (se disponível)
+      if (_thematicAxisOptions.isNotEmpty) {
+        _selectedThematicAxis = _thematicAxisOptions.first;
+      }
+      if (_projectIdOptions.isNotEmpty) {
+        _selectedProjectId = _projectIdOptions.first;
+      }
+      if (_pgaOptions.isNotEmpty) {
+        _selectedYear = _pgaOptions.first;
+      }
+      if (_priorityOptions.isNotEmpty) {
+        _selectedPriority = _priorityOptions.first;
+      }
+    });
+    
+    // Adicionar pelo menos um responsável vazio após limpar o state
+    _addResponsiblePerson();
+    
+    debugPrint('✅ Formulário limpo com sucesso');
+  }
+
   @override
   void dispose() {
-  // try to save a draft before disposing controllers
     _saveDraft();
-    // cancelar timer de autosave
     _autosaveTimer?.cancel();
+    
+    // Dispose de todos os controladores
     _nameController.dispose();
     _descriptionController.dispose();
     _justificationController.dispose();
@@ -436,6 +466,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     _endDateController.dispose();
     _costController.dispose();
     _resourceSourceController.dispose();
+    
     super.dispose();
   }
 
@@ -447,6 +478,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
       locale: const Locale('pt', 'BR'),
     );
+    
     if (picked != null) {
       setState(() {
         controller.text = '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
@@ -558,42 +590,36 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
       // salvar no SQLite local com local_id
       await db.saveProject(jsonEncode(project), localId: localId);
 
-      // mapear payload para o formato esperado pelo backend (`CreateProject1Dto`)
-      // map selected display values to server-side ids using mapping dicts
-      // derive pga id from stored objects: prefer direct object lookup, fallback to year->id map
+      // Mapear valores selecionados para IDs do backend
       int? mappedPgaId;
       final selectedObj = _pgaByYear[_selectedYear];
       if (selectedObj != null) {
         final idVal = selectedObj['pga_id'] ?? selectedObj['id'];
-        final maybe = _toInt(idVal);
-        if (maybe != null) mappedPgaId = maybe;
+        mappedPgaId = _toInt(idVal);
       }
-      mappedPgaId ??= _pgaYearToId[_selectedYear];
+      
       final int? mappedEixoId = _eixoNameToId[_selectedThematicAxis];
       final int? mappedTemaId = _temaNameToId[_selectedProjectId];
       final int? mappedPrioridadeId = _priorityNameToId[_selectedPriority];
 
-      if (mappedPgaId == null) debugPrint('Aviso: pga_id nao encontrado para ano "$_selectedYear"');
-      if (mappedEixoId == null) debugPrint('Aviso: eixo_id nao encontrado para "$_selectedThematicAxis"');
-      if (mappedTemaId == null) debugPrint('Aviso: tema_id nao encontrado para "$_selectedProjectId"');
-      if (mappedPrioridadeId == null) debugPrint('Aviso: prioridade_id nao encontrado para "$_selectedPriority"');
+      // Avisos se IDs não encontrados
+      if (mappedPgaId == null) debugPrint('⚠️ PGA ID não encontrado para ano "$_selectedYear"');
+      if (mappedEixoId == null) debugPrint('⚠️ Eixo ID não encontrado para "$_selectedThematicAxis"');
+      if (mappedTemaId == null) debugPrint('⚠️ Tema ID não encontrado para "$_selectedProjectId"');
+      if (mappedPrioridadeId == null) debugPrint('⚠️ Prioridade ID não encontrado para "$_selectedPriority"');
 
-  // convert form dates (dd/mm/yyyy) to ISO (YYYY-MM-DD) for backend
-  final isoStart = _toIsoDate(_startDateController.text);
-  final isoEnd = _toIsoDate(_endDateController.text);
-
-  final payload = {
+      // Montar payload para o backend
+      final payload = {
         'codigo_projeto': 'LOCAL-$localId',
         'nome_projeto': _nameController.text,
-        // use mapped ids when available, otherwise null so backend can validate
         'pga_id': mappedPgaId,
         'eixo_id': mappedEixoId,
         'prioridade_id': mappedPrioridadeId,
         'tema_id': mappedTemaId,
         'o_que_sera_feito': _descriptionController.text,
         'por_que_sera_feito': _justificationController.text,
-  'data_inicio': isoStart,
-  'data_final': isoEnd,
+        'data_inicio': _toIsoDate(_startDateController.text),
+        'data_final': _toIsoDate(_endDateController.text),
         'objetivos_institucionais_referenciados': _objectivesController.text,
         'obrigatorio_inclusao': _mandatoryInclusion,
         'obrigatorio_sustentabilidade': _mandatorySustainability,
@@ -604,40 +630,36 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
       // enfileirar sync (POST /project1) com referência local
       await db.enqueueSync('create_project', '/project1', 'POST', jsonEncode(payload), localRef: localId);
 
-      // enfileirar pessoas responsáveis (project-person) usando acao_projeto_local_ref
-        for (final person in _responsiblePeople) {
-        // if person has a selected pessoa_id mapping in the real app, use it; here we try to parse numeric id from name if present
-        int? pessoaId;
-          pessoaId = _toInt(person['pessoa_id']);
-
+      // Enfileirar pessoas responsáveis
+      for (final person in _responsiblePeople) {
+        final pessoaId = _toInt(person['pessoa_id']);
         final personPayload = {
           'acao_projeto_local_ref': localId,
-          // if we don't have pessoaId, backend may require it; keep optional for now
           if (pessoaId != null) 'pessoa_id': pessoaId,
-          // default papel (if app has mapping, replace accordingly). Using 'Coordenador' as placeholder.
-          if (person['papel'] != null) 'papel': person['papel'],
-          if (person['papel'] == null) 'papel': 'Coordenador',
+          'papel': person['papel'] ?? 'Coordenador',
         };
         await db.enqueueSync('attach_person', '/project-person', 'POST', jsonEncode(personPayload), localRef: localId);
       }
 
-      // enfileirar etapas do projeto (process-step) usando acao_projeto_local_ref
+      // Enfileirar etapas do projeto
       for (final step in _projectSteps) {
-        final plannedIso = _toIsoDate(step['plannedDate']?.toString());
-        final actualIso = _toIsoDate(step['actualDate']?.toString());
         final stepPayload = {
           'acao_projeto_local_ref': localId,
           'descricao': step['description'] ?? '',
           if (step['deliverable_id'] != null) 'entregavel_id': step['deliverable_id'],
-          if (step['referenceNumber'] != null && (step['referenceNumber'] as String).isNotEmpty) 'numero_ref': step['referenceNumber'],
-          if (plannedIso != null) 'data_verificacao_prevista': plannedIso,
-          if (actualIso != null) 'data_verificacao_realizada': actualIso,
-          if (step['verification'] != null && (step['verification'] as String).isNotEmpty) 'status_verificacao': step['verification'],
+          if (step['referenceNumber'] != null && (step['referenceNumber'] as String).isNotEmpty) 
+            'numero_ref': step['referenceNumber'],
+          if (_toIsoDate(step['plannedDate']?.toString()) != null) 
+            'data_verificacao_prevista': _toIsoDate(step['plannedDate']?.toString()),
+          if (_toIsoDate(step['actualDate']?.toString()) != null) 
+            'data_verificacao_realizada': _toIsoDate(step['actualDate']?.toString()),
+          if (step['verification'] != null && (step['verification'] as String).isNotEmpty) 
+            'status_verificacao': step['verification'],
         };
         await db.enqueueSync('create_step', '/process-step', 'POST', jsonEncode(stepPayload), localRef: localId);
       }
 
-      // enfileirar situações problema (problem-situation) usando acao_projeto_local_ref
+      // Enfileirar situações problema
       for (final problema in _problemSituations) {
         final probPayload = {
           'acao_projeto_local_ref': localId,
@@ -648,22 +670,15 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
 
       // tentar sincronizar agora (se online)
       final sync = SyncService();
-      await sync.trySyncAll(BACKEND_BASE);
+      await sync.trySyncAll(AppConfig.baseUrl);
 
-      // se havia um rascunho associado, remover após sucesso
-      if (_draftLocalId != null) {
-        try {
-          await _localDb.deleteDraftByLocalId(_draftLocalId!);
-          _draftLocalId = null;
-        } catch (e) {
-          debugPrint('Falha ao remover rascunho apos envio: $e');
-        }
-      }
+      // Limpar formulário e rascunhos após sucesso
+      await _clearForm();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Projeto salvo localmente e enfileirado para sincronização.'),
+            content: Text('Projeto criado com sucesso!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -704,6 +719,42 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.clear_all, color: Colors.black),
+            tooltip: 'Limpar formulário',
+            onPressed: () async {
+              // Confirmar antes de limpar
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Limpar formulário'),
+                  content: const Text('Tem certeza que deseja limpar todos os campos? Esta ação não pode ser desfeita.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancelar'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Limpar', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+              
+              if (confirm == true) {
+                await _clearForm();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Formulário limpo com sucesso!'),
+                      backgroundColor: Colors.blue,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
           Container(
             margin: const EdgeInsets.only(right: 16),
             child: const CircleAvatar(
@@ -793,7 +844,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                   _buildDropdownField(
                     'Ano (PGA)',
                     _selectedYear,
-                    _yearOptions,
+                    _pgaOptions,
                     (value) => setState(() => _selectedYear = value!),
                     hintText: 'Selecione o ano do PGA',
                   ),
@@ -1379,11 +1430,18 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildTextField(
-            'Descrição da Etapa',
-            TextEditingController(text: step['description']),
+          TextFormField(
+            initialValue: step['description'],
             maxLines: 3,
-            hintText: 'Descreva a etapa do projeto',
+            decoration: const InputDecoration(
+              labelText: 'Descrição da Etapa',
+              hintText: 'Descreva a etapa do projeto',
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+            ),
+            onChanged: (value) {
+              step['description'] = value;
+            },
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<int>(
@@ -1418,19 +1476,102 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
             hint: const Text('Selecione o entregável'),
           ),
           const SizedBox(height: 12),
-          _buildTextField(
-            'Número de Referência',
-            TextEditingController(text: step['referenceNumber']),
+          TextFormField(
+            initialValue: step['referenceNumber'],
+            decoration: const InputDecoration(
+              labelText: 'Número de Referência',
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+            ),
+            onChanged: (value) {
+              step['referenceNumber'] = value;
+            },
           ),
           const SizedBox(height: 12),
-          _buildDateField(
-            'Data Verificação Prevista',
-            TextEditingController(text: step['plannedDate']),
+          TextFormField(
+            key: ValueKey('planned_${step['id']}_${step['plannedDate']}'),
+            initialValue: step['plannedDate']?.toString() ?? '',
+            decoration: InputDecoration(
+              labelText: 'Data Verificação Prevista',
+              hintText: 'dd/mm/aaaa',
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.calendar_today),
+                onPressed: () async {
+                  final DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now().add(const Duration(days: 30)),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    locale: const Locale('pt', 'BR'),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      step['plannedDate'] = '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
+                    });
+                  }
+                },
+              ),
+            ),
+            readOnly: true,
+            onTap: () async {
+              final DateTime? picked = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now().add(const Duration(days: 30)),
+                firstDate: DateTime.now(),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+                locale: const Locale('pt', 'BR'),
+              );
+              if (picked != null) {
+                setState(() {
+                  step['plannedDate'] = '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
+                });
+              }
+            },
           ),
           const SizedBox(height: 12),
-          _buildDateField(
-            'Data Verificação Realizada',
-            TextEditingController(text: step['actualDate']),
+          TextFormField(
+            key: ValueKey('actual_${step['id']}_${step['actualDate']}'),
+            initialValue: step['actualDate']?.toString() ?? '',
+            decoration: InputDecoration(
+              labelText: 'Data Verificação Realizada',
+              hintText: 'dd/mm/aaaa',
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.calendar_today),
+                onPressed: () async {
+                  final DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    locale: const Locale('pt', 'BR'),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      step['actualDate'] = '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
+                    });
+                  }
+                },
+              ),
+            ),
+            readOnly: true,
+            onTap: () async {
+              final DateTime? picked = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+                locale: const Locale('pt', 'BR'),
+              );
+              if (picked != null) {
+                setState(() {
+                  step['actualDate'] = '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
+                });
+              }
+            },
           ),
           const SizedBox(height: 12),
           Row(

@@ -89,6 +89,10 @@ class SyncService {
             try {
               if (endpoint.endsWith('/project1') && localRef != null && (res.statusCode == 201 || parsedId != null)) {
                 await _db.deleteDraftByLocalId(localRef);
+                // Remover projeto local da tabela projects se foi criado com sucesso
+                if (parsedId != null) {
+                  await _db.removeLocalProject(localRef);
+                }
               }
             } catch (e) {
               // ignore draft deletion errors

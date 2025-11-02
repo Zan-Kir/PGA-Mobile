@@ -6,9 +6,9 @@ import '../widgets/project_card.dart';
 import '../widgets/bottom_navigation.dart';
 import '../services/local_db.dart';
 import '../services/sync_service.dart';
+import '../services/config.dart';
+import '../services/auth_storage.dart';
 import 'package:http/http.dart' as http;
-
-const BACKEND_BASE = 'http://10.0.2.2:3000'; // ajustar conforme emulador/dispositivo
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
@@ -47,8 +47,53 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   void initState() {
     super.initState();
     _loadLocalProjects();
-    // tentar sincronizar em background
-    _sync.trySyncAll(BACKEND_BASE).then((_) => _loadLocalProjects()).catchError((e) => debugPrint('sync error: $e'));
+    // Carregar projetos do backend ao iniciar
+    _loadProjectsFromBackend();
+  }
+
+  Future<void> _loadProjectsFromBackend() async {
+    try {
+      // Buscar token de autenticação
+      final token = await AuthStorage.readToken();
+      if (token == null) {
+        debugPrint('⚠️ Token não encontrado, usuário precisa fazer login');
+        return;
+      }
+
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
+      final resp = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/project1'),
+        headers: headers,
+      );
+      
+      if (resp.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(resp.body);
+        debugPrint('✅ Projetos carregados do backend: ${data.length} projetos');
+        
+        // Limpar projetos do servidor antes de salvar novos (evita duplicação)
+        await _localDb.clearProjectsFromServer();
+        
+        // salvar cada projeto no local DB
+        for (final p in data) {
+          final serverId = p['acao_projeto_id'];
+          final localId = p['codigo_projeto']?.toString();
+          await _localDb.saveProject(
+            jsonEncode(p), 
+            localId: localId,
+            serverId: serverId,
+          );
+        }
+        await _loadLocalProjects();
+      } else {
+        debugPrint('❌ Erro ao buscar projetos: ${resp.statusCode} - ${resp.body}');
+      }
+    } catch (e) {
+      debugPrint('❌ Exceção ao buscar projetos: $e');
+    }
   }
 
   Future<void> _loadLocalProjects() async {
@@ -58,32 +103,137 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         final data = r['data'] as String;
         try {
           final parsed = Map<String, dynamic>.from(jsonDecode(data));
-          return parsed;
+          return _mapProjectFromBackend(parsed);
         } catch (_) {
-          return {'id': r['local_id'] ?? r['id'].toString(), 'name': data};
+          return {'id': r['local_id'] ?? r['id'].toString(), 'name': data, 'status': 'em andamento', 'progress': 0, 'deadline': 'N/A', 'responsible': 'N/A'};
         }
       }).toList();
     });
   }
 
+  /// Mapeia os dados do backend para o formato esperado pelo ProjectCard
+  Map<String, dynamic> _mapProjectFromBackend(Map<String, dynamic> backendData) {
+    // Extrair dados do backend (AcaoProjeto)
+    final codigoProjeto = backendData['codigo_projeto'] ?? '';
+    final nomeProjeto = backendData['nome_projeto'] ?? 'Projeto sem nome';
+    final dataFinal = backendData['data_final'];
+    
+    // Calcular progresso baseado nas etapas (se disponível)
+    int progress = 0;
+    if (backendData['etapas'] != null && backendData['etapas'] is List) {
+      final etapas = backendData['etapas'] as List;
+      if (etapas.isNotEmpty) {
+        final concluidas = etapas.where((e) => e['concluido'] == true).length;
+        progress = ((concluidas / etapas.length) * 100).round();
+      }
+    }
+    
+    // Determinar status baseado no progresso e datas
+    String status = 'em andamento';
+    if (progress == 100) {
+      status = 'concluído';
+    } else if (dataFinal != null) {
+      try {
+        final deadline = DateTime.parse(dataFinal);
+        if (deadline.isBefore(DateTime.now())) {
+          status = 'atrasado';
+        }
+      } catch (_) {}
+    }
+    
+    // Formatar prazo
+    String deadline = 'N/A';
+    if (dataFinal != null) {
+      try {
+        final date = DateTime.parse(dataFinal);
+        deadline = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+      } catch (_) {
+        deadline = dataFinal.toString();
+      }
+    }
+    
+    // Pegar o responsável (primeira pessoa se houver)
+    String responsible = 'Não atribuído';
+    if (backendData['pessoas'] != null && backendData['pessoas'] is List) {
+      final pessoas = backendData['pessoas'] as List;
+      if (pessoas.isNotEmpty && pessoas.first['pessoa'] != null) {
+        responsible = pessoas.first['pessoa']['nome'] ?? 'Não atribuído';
+      }
+    }
+    
+    return {
+      'id': backendData['acao_projeto_id']?.toString() ?? codigoProjeto,
+      'codigo_projeto': codigoProjeto,
+      'name': nomeProjeto,
+      'status': status,
+      'progress': progress,
+      'deadline': deadline,
+      'responsible': responsible,
+      // Manter dados originais para referência
+      '_original': backendData,
+    };
+  }
+
   Future<void> _onRefresh() async {
     // tentar sync (enviar fila)
-    await _sync.trySyncAll(BACKEND_BASE);
+    await _sync.trySyncAll(AppConfig.baseUrl);
 
     // tentar buscar a lista atual do backend e atualizar cache local
     try {
-      final resp = await http.get(Uri.parse('$BACKEND_BASE/project1'));
+      // Buscar token de autenticação
+      final token = await AuthStorage.readToken();
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+      };
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+
+      final resp = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/project1'),
+        headers: headers,
+      );
+      
       if (resp.statusCode == 200) {
         final List<dynamic> data = jsonDecode(resp.body);
+        debugPrint('✅ Projetos carregados: ${data.length} projetos');
+        
+        // Limpar projetos do servidor antes de salvar novos (evita duplicação)
+        await _localDb.clearProjectsFromServer();
+        
         // salvar cada projeto no local DB (substituir cache simplificado)
         for (final p in data) {
-          await _localDb.saveProject(jsonEncode(p), localId: p['codigo_projeto']?.toString());
+          final serverId = p['acao_projeto_id'];
+          final localId = p['codigo_projeto']?.toString();
+          await _localDb.saveProject(
+            jsonEncode(p), 
+            localId: localId,
+            serverId: serverId,
+          );
         }
         await _loadLocalProjects();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${data.length} projetos carregados com sucesso!')),
+          );
+        }
         return;
+      } else {
+        debugPrint('❌ Erro ao buscar projetos: ${resp.statusCode} - ${resp.body}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao carregar projetos: ${resp.statusCode}')),
+          );
+        }
       }
     } catch (e) {
-      debugPrint('Erro ao buscar projetos do backend: $e');
+      debugPrint('❌ Exceção ao buscar projetos do backend: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro de conexão: $e')),
+        );
+      }
     }
 
     // fallback: recarregar local
