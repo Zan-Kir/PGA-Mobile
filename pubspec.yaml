@@ -1,7 +1,7 @@
 name: pga_mobile
 description: Sistema de Gestão de Projetos Acadêmicos - Fatec Votorantim
 publish_to: 'none'
-version: 1.3.4+1
+version: 1.6.1+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -24,6 +24,7 @@ dependencies:
   path: ^1.8.3
   flutter_secure_storage: ^8.0.0
   connectivity_plus: ^4.0.2
+  package_info_plus: ^8.0.0
 
 dev_dependencies:
   flutter_test:

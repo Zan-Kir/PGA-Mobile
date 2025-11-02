@@ -9,7 +9,7 @@ import 'src/theme/app_theme.dart';
 import 'src/screens/login_screen.dart';
 import 'src/screens/dashboard_screen.dart';
 import 'src/screens/projects_screen.dart';
-import 'src/screens/create_project_screen.dart';
+import 'src/screens/create_project_screen.dart' as new_screen;
 import 'src/screens/settings_screen.dart';
 import 'src/widgets/splash_widget.dart';
 
@@ -90,7 +90,7 @@ class MyApp extends StatelessWidget {
               GoRoute(
                 path: '/create-project',
                 name: 'create-project',
-                builder: (context, state) => const CreateProjectScreen(),
+                builder: (context, state) => const new_screen.CreateProjectScreen(),
               ),
               GoRoute(
                 path: '/settings',

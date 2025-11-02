@@ -53,9 +53,11 @@ class SyncService {
         }
 
         if (method.toUpperCase() == 'POST') {
-          res = await http.post(Uri.parse(url), headers: headers, body: bodyToSend);
+          res = await http.post(Uri.parse(url),
+              headers: headers, body: bodyToSend);
         } else if (method.toUpperCase() == 'PUT') {
-          res = await http.put(Uri.parse(url), headers: headers, body: bodyToSend);
+          res = await http.put(Uri.parse(url),
+              headers: headers, body: bodyToSend);
         } else if (method.toUpperCase() == 'DELETE') {
           res = await http.delete(Uri.parse(url), headers: headers);
         } else {
@@ -72,11 +74,17 @@ class SyncService {
             int? parsedId;
             if (localRef != null && respJson != null) {
               // tentar extrair id: considerar 'id', 'project_id', 'pessoa_id' ou Prisma PK 'acao_projeto_id'
-              final serverId = respJson['id'] ?? respJson['project_id'] ?? respJson['pessoa_id'] ?? respJson['acao_projeto_id'];
+              final serverId = respJson['id'] ??
+                  respJson['project_id'] ??
+                  respJson['pessoa_id'] ??
+                  respJson['acao_projeto_id'];
               if (serverId != null) {
                 // serverId pode vir como int ou string - tentar converter
-                if (serverId is int) parsedId = serverId;
-                else if (serverId is String) parsedId = int.tryParse(serverId);
+                if (serverId is int) {
+                  parsedId = serverId;
+                } else if (serverId is String) {
+                  parsedId = int.tryParse(serverId);
+                }
 
                 if (parsedId != null) {
                   await _db.updateProjectServerId(localRef, parsedId);
@@ -87,7 +95,9 @@ class SyncService {
             // if the endpoint is project creation, remove any draft associated to this localRef
             // ONLY remove when server confirmed creation (201) or when we parsed a server id
             try {
-              if (endpoint.endsWith('/project1') && localRef != null && (res.statusCode == 201 || parsedId != null)) {
+              if (endpoint.endsWith('/project1') &&
+                  localRef != null &&
+                  (res.statusCode == 201 || parsedId != null)) {
                 await _db.deleteDraftByLocalId(localRef);
                 // Remover projeto local da tabela projects se foi criado com sucesso
                 if (parsedId != null) {

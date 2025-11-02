@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../services/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bottom_navigation.dart';
@@ -18,12 +19,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _autoSaveEnabled = true;
   String _selectedLanguage = 'Português';
   double _fontSize = 16.0;
+  String _appVersion = '...';
 
   final List<String> _languageOptions = [
     'Português',
-    'English',
-    'Español',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -165,7 +178,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 ListTile(
                   title: const Text('Versão'),
-                  subtitle: const Text('1.0.0'),
+                  subtitle: Text(_appVersion),
                   leading: const Icon(Icons.info_outline),
                 ),
                 ListTile(
@@ -187,46 +200,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 24),
 
-            // Informações da Instituição
-            Card(
-              child: Container(
-                color: Color(0xFFFFFFFF),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Fatec Votorantim',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
+            // Seção de Informações da Instituição
+            _buildSection(
+              title: 'Instituição',
+              icon: Icons.school,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Fatec Votorantim',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryColor,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Sistema de Gestão de Projetos Acadêmicos',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.textSecondaryColor,
+                        SizedBox(height: 8),
+                        Text(
+                          'Sistema de Gestão de Projetos Acadêmicos',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppTheme.textSecondaryColor,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        '© 2025 Todos os direitos reservados',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
+                        SizedBox(height: 8),
+                        Text(
+                          'Lumina Team \n© 2025 Todos os direitos reservados',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
@@ -267,11 +285,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(height: 16),
         Card(
-          child: Container(
-            color: Color(0xFFFFFFFF),
-            child: Column(
-              children: children,
-            ),
+          color: Colors.white,
+          child: Column(
+            children: children,
           ),
         ),
       ],
@@ -281,21 +297,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showLanguageDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Selecionar Idioma'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: _languageOptions.map((language) {
-            return RadioListTile<String>(
-              title: Text(language),
-              value: language,
-              groupValue: _selectedLanguage,
-              onChanged: (value) {
+            final isSelected = _selectedLanguage == language;
+            return InkWell(
+              onTap: () {
                 setState(() {
-                  _selectedLanguage = value!;
+                  _selectedLanguage = language;
                 });
-                Navigator.of(context).pop();
+                Navigator.of(dialogContext).pop();
               },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+                child: Row(
+                  children: [
+                    Icon(
+                      isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                      color: isSelected ? AppTheme.primaryColor : Colors.grey,
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      language,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? AppTheme.primaryColor : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             );
           }).toList(),
         ),
@@ -303,8 +337,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showLogoutDialog() {
-    showDialog<bool>(
+  void _showLogoutDialog() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    
+    final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
@@ -321,14 +357,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-    ).then((confirmed) async {
-      if (confirmed == true) {
-        try {
-          final auth = Provider.of<AuthProvider>(context, listen: false);
-          await auth.logout();
-        } catch (_) {}
-        if (mounted) context.go('/');
-      }
-    });
+    );
+
+    if (confirmed == true) {
+      try {
+        await auth.logout();
+      } catch (_) {}
+      if (!mounted) return;
+      context.go('/');
+    }
   }
 }

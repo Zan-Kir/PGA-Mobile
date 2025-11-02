@@ -40,6 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text;
 
     try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
       final url = Uri.parse(AppConfig.loginEndpoint);
       final res = await http.post(
         url,
@@ -53,7 +54,6 @@ class _LoginScreenState extends State<LoginScreen> {
         final refresh = body != null && body['refresh_token'] != null ? body['refresh_token'] : null;
         if (token != null) {
           // use AuthProvider to persist tokens and fetch user
-          final auth = Provider.of<AuthProvider>(context, listen: false);
           await auth.setToken(token as String, refresh: refresh as String?);
           try {
             final meRes = await http.get(Uri.parse(AppConfig.meEndpoint), headers: {'Authorization': 'Bearer $token'});
@@ -63,41 +63,37 @@ class _LoginScreenState extends State<LoginScreen> {
             }
           } catch (_) {}
 
-          if (mounted) {
-            setState(() => _isLoading = false);
-            context.go('/dashboard');
-          }
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          context.go('/dashboard');
           return;
         }
       }
-      if (mounted) {
-        final startOffline = await _showOfflinePrompt('Nome de usuário ou senha inválidos');
-        if (startOffline) {
-          if (mounted) setState(() => _isLoading = false);
-          if (mounted) context.go('/dashboard');
-          return;
-        } else {
-          if (mounted) setState(() => _isLoading = false);
-          return;
-        }
+      
+      if (!mounted) return;
+      final startOffline = await _showOfflinePrompt('Nome de usuário ou senha inválidos');
+      if (!mounted) return;
+      
+      setState(() => _isLoading = false);
+      if (startOffline) {
+        context.go('/dashboard');
       }
     } catch (e) {
-      if (mounted) {
-        final startOffline = await _showOfflinePrompt(
-            'Não foi possível conectar ao servidor');
-        if (startOffline) {
-          if (mounted) setState(() => _isLoading = false);
-          if (mounted) context.go('/dashboard');
-          return;
-        } else {
-          if (mounted) setState(() => _isLoading = false);
-          return;
-        }
+      if (!mounted) return;
+      final startOffline = await _showOfflinePrompt(
+          'Não foi possível conectar ao servidor');
+      if (!mounted) return;
+      
+      setState(() => _isLoading = false);
+      if (startOffline) {
+        context.go('/dashboard');
       }
     }
   }
 
   Future<bool> _showOfflinePrompt(String reason) async {
+    if (!mounted) return false;
+    
     return await showDialog<bool>(
           context: context,
           barrierDismissible: false,
@@ -132,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
           ),
           child: SafeArea(
             child: SingleChildScrollView(
