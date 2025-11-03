@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'local_db.dart';
@@ -7,19 +8,20 @@ import 'dart:convert';
 class SyncService {
   final LocalDB _db = LocalDB();
 
-  // Simple sync: read queue and try to send
   Future<void> trySyncAll(String baseUrl) async {
     final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity == ConnectivityResult.none) return;
+    if (connectivity == ConnectivityResult.none) {
+      return;
+    }
 
     final token = await AuthStorage.readToken();
     final queue = await _db.getSyncQueue();
     for (final item in queue) {
+      final id = item['id'] as int;
       try {
         final endpoint = item['endpoint'] as String;
         final method = item['method'] as String;
         final body = item['body'] as String?;
-        final id = item['id'] as int;
         final localRef = item['local_ref'] as String?;
 
         final headers = <String, String>{'Content-Type': 'application/json'};
@@ -27,17 +29,15 @@ class SyncService {
 
         late http.Response res;
         final url = '$baseUrl${endpoint.startsWith('/') ? '' : '/'}$endpoint';
-        // If body contains an acao_projeto_local_ref, try to resolve it to a server id
         String? bodyToSend = body;
         if (bodyToSend != null) {
           try {
             final parsed = json.decode(bodyToSend);
             if (parsed is Map && parsed.containsKey('acao_projeto_local_ref')) {
-              final localParent = parsed['acao_projeto_local_ref']?.toString();
+              final localParent = parsed['acao_projeto_local_ref']?.toString();              
               if (localParent != null && localParent.isNotEmpty) {
                 final serverId = await _db.getServerId(localParent);
                 if (serverId == null) {
-                  // Parent project not synced yet; skip this item for now
                   continue;
                 }
                 // set proper acao_projeto_id and remove local ref
@@ -47,7 +47,6 @@ class SyncService {
               }
             }
           } catch (e) {
-            // if parsing fails, just keep original body
             bodyToSend = body;
           }
         }
@@ -61,25 +60,17 @@ class SyncService {
         } else if (method.toUpperCase() == 'DELETE') {
           res = await http.delete(Uri.parse(url), headers: headers);
         } else {
-          // Unsupported - remove to avoid infinite loop
           await _db.removeSyncItem(id);
           continue;
         }
-
+        
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          // success -> remove from queue
-          // if POST created a resource and we have local_ref, map ids
           try {
             final respJson = res.body.isNotEmpty ? json.decode(res.body) : null;
             int? parsedId;
-            if (localRef != null && respJson != null) {
-              // tentar extrair id: considerar 'id', 'project_id', 'pessoa_id' ou Prisma PK 'acao_projeto_id'
-              final serverId = respJson['id'] ??
-                  respJson['project_id'] ??
-                  respJson['pessoa_id'] ??
-                  respJson['acao_projeto_id'];
+            if (localRef != null && respJson != null && endpoint.endsWith('/project1')) {
+              final serverId = respJson['acao_projeto_id'] ?? respJson['id'];
               if (serverId != null) {
-                // serverId pode vir como int ou string - tentar converter
                 if (serverId is int) {
                   parsedId = serverId;
                 } else if (serverId is String) {
@@ -92,8 +83,6 @@ class SyncService {
               }
             }
 
-            // if the endpoint is project creation, remove any draft associated to this localRef
-            // ONLY remove when server confirmed creation (201) or when we parsed a server id
             try {
               if (endpoint.endsWith('/project1') &&
                   localRef != null &&
@@ -105,19 +94,18 @@ class SyncService {
                 }
               }
             } catch (e) {
-              // ignore draft deletion errors
+              debugPrint('  ⚠️ Erro ao remover draft: $e');
             }
           } catch (e) {
-            // ignore parsing errors
+            debugPrint('  ⚠️ Erro ao parsear resposta: $e');
           }
 
           await _db.removeSyncItem(id);
         } else {
-          // keep in queue, maybe retry later
-          // optionally add retry count logic
+          debugPrint('  ❌ Sync #$id falhou com status ${res.statusCode}: ${res.body}');
         }
       } catch (e) {
-        // network or parse error - keep item
+        debugPrint('  ❌ Erro de rede/parse no sync #$id: $e');
       }
     }
   }

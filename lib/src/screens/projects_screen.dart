@@ -111,34 +111,79 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     });
   }
 
-  /// Mapeia os dados do backend para o formato esperado pelo ProjectCard
   Map<String, dynamic> _mapProjectFromBackend(Map<String, dynamic> backendData) {
-    // Extrair dados do backend (AcaoProjeto)
     final codigoProjeto = backendData['codigo_projeto'] ?? '';
     final nomeProjeto = backendData['nome_projeto'] ?? 'Projeto sem nome';
+    final dataInicio = backendData['data_inicio'];
     final dataFinal = backendData['data_final'];
     
     // Calcular progresso baseado nas etapas (se disponível)
-    int progress = 0;
+    int progressoEtapas = 0;
+    bool todasEtapasConcluidas = false;
+    
     if (backendData['etapas'] != null && backendData['etapas'] is List) {
       final etapas = backendData['etapas'] as List;
       if (etapas.isNotEmpty) {
-        final concluidas = etapas.where((e) => e['concluido'] == true).length;
-        progress = ((concluidas / etapas.length) * 100).round();
+        final concluidas = etapas.where((e) => 
+          e['status_verificacao'] == 'OK' || e['concluido'] == true
+        ).length;
+        progressoEtapas = ((concluidas / etapas.length) * 100).round();
+        todasEtapasConcluidas = concluidas == etapas.length;
       }
+    }
+    
+    // Calcular progresso baseado no tempo decorrido
+    int progressoTempo = 0;
+    if (dataInicio != null && dataFinal != null) {
+      try {
+        final inicio = DateTime.parse(dataInicio);
+        final fim = DateTime.parse(dataFinal);
+        final agora = DateTime.now();
+        
+        // Calcular o tempo total e o tempo decorrido
+        final tempoTotal = fim.difference(inicio).inDays;
+        final tempoDecorrido = agora.difference(inicio).inDays;
+        
+        if (tempoTotal > 0) {
+          progressoTempo = ((tempoDecorrido / tempoTotal) * 100).clamp(0, 100).round();
+        } else if (tempoTotal == 0) {
+          // Se início e fim são no mesmo dia, considerar o horário
+          progressoTempo = agora.isAfter(fim) || agora.isAtSameMomentAs(fim) ? 100 : 0;
+        }
+        
+      } catch (e) {
+        debugPrint('⚠️ Erro ao parsear datas do projeto "$nomeProjeto": $e');
+      }
+    }
+    
+    // Calcular progresso final: média entre progresso de etapas e tempo
+    // Se não houver etapas, usar apenas o tempo; se não houver datas, usar apenas etapas
+    int progress = 0;
+    if (progressoEtapas > 0 && progressoTempo > 0) {
+      // Média ponderada: etapas têm peso 60%, tempo tem peso 40%
+      progress = ((progressoEtapas * 0.6) + (progressoTempo * 0.4)).round();
+    } else if (progressoEtapas > 0) {
+      progress = progressoEtapas;
+    } else if (progressoTempo > 0) {
+      progress = progressoTempo;
     }
     
     // Determinar status baseado no progresso e datas
     String status = 'em andamento';
-    if (progress == 100) {
+    if (todasEtapasConcluidas) {
       status = 'concluído';
+      progress = 100;
     } else if (dataFinal != null) {
       try {
         final deadline = DateTime.parse(dataFinal);
-        if (deadline.isBefore(DateTime.now())) {
+        if (deadline.isBefore(DateTime.now()) && progress < 100) {
           status = 'atrasado';
+        } else {
+          debugPrint('🔄 Projeto "$nomeProjeto": Status = EM ANDAMENTO');
         }
       } catch (_) {}
+    } else {
+      debugPrint('🔄 Projeto "$nomeProjeto": Status = EM ANDAMENTO');
     }
     
     // Formatar prazo
@@ -152,7 +197,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       }
     }
     
-    // Pegar o responsável (primeira pessoa se houver)
     String responsible = 'Não atribuído';
     if (backendData['pessoas'] != null && backendData['pessoas'] is List) {
       final pessoas = backendData['pessoas'] as List;
@@ -169,18 +213,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       'progress': progress,
       'deadline': deadline,
       'responsible': responsible,
-      // Manter dados originais para referência
       '_original': backendData,
     };
   }
 
   Future<void> _onRefresh() async {
-    // tentar sync (enviar fila)
     await _sync.trySyncAll(AppConfig.baseUrl);
 
-    // tentar buscar a lista atual do backend e atualizar cache local
     try {
-      // Buscar token de autenticação
       final token = await AuthStorage.readToken();
       final headers = <String, String>{
         'Content-Type': 'application/json',
@@ -198,10 +238,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         final List<dynamic> data = jsonDecode(resp.body);
         debugPrint('✅ Projetos carregados: ${data.length} projetos');
         
-        // Limpar projetos do servidor antes de salvar novos (evita duplicação)
         await _localDb.clearProjectsFromServer();
         
-        // salvar cada projeto no local DB (substituir cache simplificado)
         for (final p in data) {
           final serverId = p['acao_projeto_id'];
           final localId = p['codigo_projeto']?.toString();
@@ -236,7 +274,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       }
     }
 
-    // fallback: recarregar local
     await _loadLocalProjects();
   }
 
@@ -249,12 +286,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       ),
       body: Column(
         children: [
-          // Filtros e Busca
           Container(
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Barra de Busca
                 TextField(
                   onChanged: (value) => setState(() => _searchQuery = value),
                   decoration: InputDecoration(
@@ -271,7 +306,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
                 const SizedBox(height: 16),
 
-                // Filtros de Status
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -302,7 +336,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             ),
           ),
 
-          // Lista de Projetos
           Expanded(
             child: _filteredProjects.isEmpty
                 ? const Center(
@@ -348,7 +381,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         ],
       ),
 
-      // Navegação inferior
       bottomNavigationBar: BottomNavigation(
         currentRoute: '/projects',
         onNavigate: (route) {

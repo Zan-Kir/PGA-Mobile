@@ -500,7 +500,7 @@ class CreateProjectController extends ChangeNotifier {
   }
 
   void addProjectStep() {
-    projectSteps.add({
+    final newStep = {
       'description': '',
       'deliverable': '',
       'deliverable_id': null,
@@ -509,7 +509,8 @@ class CreateProjectController extends ChangeNotifier {
       'actualDate': '',
       'verification': null,
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
-    });
+    };
+    projectSteps.add(newStep);
     notifyListeners();
   }
 
@@ -719,7 +720,7 @@ class CreateProjectController extends ChangeNotifier {
           await _localDb.enqueueSync('attach_collab', '/project-person', 'POST', jsonEncode(collabPayload), localRef: localId);
         }
       }
-
+      
       for (final step in projectSteps) {
         final stepPayload = {
           'acao_projeto_local_ref': localId,

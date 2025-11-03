@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
+/// Widget que exibe um card de projeto com status, progresso e informações básicas.
+/// 
+/// O progresso é calculado automaticamente no ProjectsScreen baseado em:
+/// - Etapas concluídas (peso 60%)
+/// - Tempo decorrido do projeto (peso 40%)
+/// 
+/// Se todas as etapas estiverem concluídas, o status é automaticamente "Concluído".
 class ProjectCard extends StatelessWidget {
   final Map<String, dynamic> project;
   final VoidCallback onTap;
