@@ -159,6 +159,22 @@ class CreateProjectController extends ChangeNotifier {
     }
   }
 
+  String? toIsoDateTime(String? ddmmyyyy) {
+    if (ddmmyyyy == null || ddmmyyyy.isEmpty) return null;
+    final parts = ddmmyyyy.split('/');
+    if (parts.length != 3) return null;
+    final d = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    final y = int.tryParse(parts[2]);
+    if (d == null || m == null || y == null) return null;
+    try {
+      final dt = DateTime.utc(y, m, d);
+      return dt.toIso8601String();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Map<String, String>> _authHeaders() async {
     final token = await AuthStorage.readToken();
     final headers = {'Content-Type': 'application/json'};
@@ -648,6 +664,12 @@ class CreateProjectController extends ChangeNotifier {
       if (mappedTemaId == null) debugPrint('⚠️ Tema ID não encontrado para "$selectedProjectId"');
       if (mappedPrioridadeId == null) debugPrint('⚠️ Prioridade ID não encontrado para "$selectedPriority"');
 
+      final List<int> situacaoProblemaIds = problemSituations
+          .map((p) => toInt(p['problem_situation_id'] ?? p['situacao_id']))
+          .where((id) => id != null)
+          .cast<int>()
+          .toList();
+
       final payload = {
         'codigo_projeto': 'LOCAL-$localId',
         'nome_projeto': nameController.text,
@@ -664,6 +686,8 @@ class CreateProjectController extends ChangeNotifier {
         'obrigatorio_sustentabilidade': mandatorySustainability,
         'custo_total_estimado': double.tryParse(costController.text.replaceAll(RegExp(r'[^0-9\.]'), '')) ?? 0.0,
         'fonte_recursos': resourceSourceController.text,
+        if (situacaoProblemaIds.isNotEmpty)
+          'situacao_problema_ids': situacaoProblemaIds,
       };
 
       await _localDb.enqueueSync('create_project', '/project1', 'POST', jsonEncode(payload), localRef: localId);
@@ -703,20 +727,13 @@ class CreateProjectController extends ChangeNotifier {
           if (step['deliverable_id'] != null) 'entregavel_id': step['deliverable_id'],
           if (step['referenceNumber'] != null && (step['referenceNumber'] as String).isNotEmpty)
             'numero_ref': step['referenceNumber'],
-          if (toIsoDate(step['plannedDate']?.toString()) != null)
-            'data_verificacao_prevista': toIsoDate(step['plannedDate']?.toString()),
-          if (toIsoDate(step['actualDate']?.toString()) != null)
-            'data_verificacao_realizada': toIsoDate(step['actualDate']?.toString()),
+          if (toIsoDateTime(step['plannedDate']?.toString()) != null)
+            'data_verificacao_prevista': toIsoDateTime(step['plannedDate']?.toString()),
+          if (toIsoDateTime(step['actualDate']?.toString()) != null)
+            'data_verificacao_realizada': toIsoDateTime(step['actualDate']?.toString()),
+          if (step['verification'] != null) 'status_verificacao': step['verification'],
         };
         await _localDb.enqueueSync('create_step', '/process-step', 'POST', jsonEncode(stepPayload), localRef: localId);
-      }
-
-      for (final problema in problemSituations) {
-        final probPayload = {
-          'acao_projeto_local_ref': localId,
-          'situacao': problema['situation'] ?? '',
-        };
-        await _localDb.enqueueSync('create_problem', '/problem-situation', 'POST', jsonEncode(probPayload), localRef: localId);
       }
 
       final sync = SyncService();

@@ -1,7 +1,7 @@
 name: pga_mobile
 description: Sistema de Gestão de Projetos Acadêmicos - Fatec Votorantim
 publish_to: 'none'
-version: 1.6.1+1
+version: 1.6.2+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
