@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'src/services/auth_provider.dart';
 import 'src/services/config.dart';
 import 'src/theme/app_theme.dart';
+import 'src/services/theme_provider.dart';
 import 'src/screens/login_screen.dart';
 import 'src/screens/dashboard_screen.dart';
 import 'src/screens/projects_screen.dart';
@@ -17,7 +18,7 @@ final ValueNotifier<bool> appInitialized = ValueNotifier<bool>(false);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   final auth = AuthProvider(baseUrl: AppConfig.baseUrl);
   await auth.loadFromStorage();
 
@@ -31,19 +32,73 @@ void main() async {
     }
   }();
 
-  runApp(ChangeNotifierProvider.value(
-    value: auth,
+  runApp(MultiProvider(
+    providers: [
+      ChangeNotifierProvider.value(value: auth),
+      ChangeNotifierProvider(create: (_) => ThemeProvider()),
+    ],
     child: const MyApp(),
   ));
 }
 
-
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    _router = GoRouter(
+      initialLocation: '/',
+      refreshListenable: auth,
+      redirect: (context, state) {
+        final loggedIn = auth.isAuthenticated;
+        final loggingIn = state.uri.path == '/';
+        if (!loggedIn && !loggingIn) return '/';
+        if (loggedIn && loggingIn) return '/dashboard';
+        return null;
+      },
+      routes: [
+        GoRoute(
+          path: '/',
+          name: 'login',
+          builder: (context, state) => const LoginScreen(),
+        ),
+        GoRoute(
+          path: '/dashboard',
+          name: 'dashboard',
+          builder: (context, state) => const DashboardScreen(),
+        ),
+        GoRoute(
+          path: '/projects',
+          name: 'projects',
+          builder: (context, state) => const ProjectsScreen(),
+        ),
+        GoRoute(
+          path: '/create-project',
+          name: 'create-project',
+          builder: (context, state) => const new_screen.CreateProjectScreen(),
+        ),
+        GoRoute(
+          path: '/settings',
+          name: 'settings',
+          builder: (context, state) => const SettingsScreen(),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
     return ValueListenableBuilder<bool>(
       valueListenable: appInitialized,
       builder: (context, initialized, _) {
@@ -52,69 +107,50 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'PGA 2025 - Fatec Votorantim',
             theme: AppTheme.lightTheme,
-            home: const Scaffold(
-              body: SplashWidget(
-                logoAsset: AppConfig.appLogoAsset,
-                backgroundAsset: 'assets/images/votorantim_inaugura-1047641.png',
-              ),
-            ),
+            home: Builder(builder: (ctx) {
+              final fontScale = Provider.of<ThemeProvider>(ctx).fontScale;
+              return MediaQuery(
+                data: MediaQuery.of(ctx)
+                    .copyWith(textScaler: TextScaler.linear(fontScale)),
+                child: const Scaffold(
+                  body: SplashWidget(
+                    logoAsset: AppConfig.appLogoAsset,
+                    backgroundAsset:
+                        'assets/images/votorantim_inaugura-1047641.png',
+                  ),
+                ),
+              );
+            }),
             debugShowCheckedModeBanner: false,
           );
         } else {
-          final router = GoRouter(
-            initialLocation: '/',
-            redirect: (context, state) {
-              final auth = Provider.of<AuthProvider>(context, listen: false);
-              final loggedIn = auth.isAuthenticated;
-              final loggingIn = state.uri.path == '/';
-              if (!loggedIn && !loggingIn) return '/';
-              if (loggedIn && loggingIn) return '/dashboard';
-              return null;
-            },
-            routes: [
-              GoRoute(
-                path: '/',
-                name: 'login',
-                builder: (context, state) => const LoginScreen(),
+          return Builder(builder: (ctx) {
+            final fontScale = Provider.of<ThemeProvider>(ctx).fontScale;
+            return MediaQuery(
+              data: MediaQuery.of(ctx).copyWith(textScaler: TextScaler.linear(fontScale)),
+              child: MaterialApp.router(
+                title: 'PGA 2025 - Fatec Votorantim',
+                locale: const Locale('pt', 'BR'),
+                localizationsDelegates: const [
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                supportedLocales: const [
+                  Locale('pt', 'BR'),
+                  Locale('en', 'US')
+                ],
+                theme: AppTheme.lightTheme,
+                darkTheme: AppTheme.darkTheme,
+                themeMode:
+                    themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
+                routerConfig: _router,
+                debugShowCheckedModeBanner: false,
               ),
-              GoRoute(
-                path: '/dashboard',
-                name: 'dashboard',
-                builder: (context, state) => const DashboardScreen(),
-              ),
-              GoRoute(
-                path: '/projects',
-                name: 'projects',
-                builder: (context, state) => const ProjectsScreen(),
-              ),
-              GoRoute(
-                path: '/create-project',
-                name: 'create-project',
-                builder: (context, state) => const new_screen.CreateProjectScreen(),
-              ),
-              GoRoute(
-                path: '/settings',
-                name: 'settings',
-                builder: (context, state) => const SettingsScreen(),
-              ),
-            ],
-          );
-
-          return MaterialApp.router(
-            title: 'PGA 2025 - Fatec Votorantim',
-            locale: const Locale('pt', 'BR'),
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: const [Locale('pt', 'BR'), Locale('en', 'US')],
-            theme: AppTheme.lightTheme,
-            routerConfig: router,
-            debugShowCheckedModeBanner: false,
-          );
+            );
+          });
         }
       },
     );
-}
+  }
 }

@@ -9,10 +9,14 @@ class SyncService {
   final LocalDB _db = LocalDB();
 
   Future<void> trySyncAll(String baseUrl) async {
-    final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity == ConnectivityResult.none) {
-      return;
-    }
+    final dynamic conn = await Connectivity().checkConnectivity();
+    try {
+      if (conn == ConnectivityResult.none) return;
+      if (conn is Iterable) {
+        final list = conn.cast<ConnectivityResult>();
+        if (list.every((c) => c == ConnectivityResult.none)) return;
+      }
+    } catch (_) {}
 
     final token = await AuthStorage.readToken();
     final queue = await _db.getSyncQueue();
@@ -34,13 +38,12 @@ class SyncService {
           try {
             final parsed = json.decode(bodyToSend);
             if (parsed is Map && parsed.containsKey('acao_projeto_local_ref')) {
-              final localParent = parsed['acao_projeto_local_ref']?.toString();              
+              final localParent = parsed['acao_projeto_local_ref']?.toString();
               if (localParent != null && localParent.isNotEmpty) {
                 final serverId = await _db.getServerId(localParent);
                 if (serverId == null) {
                   continue;
                 }
-                // set proper acao_projeto_id and remove local ref
                 parsed['acao_projeto_id'] = serverId;
                 parsed.remove('acao_projeto_local_ref');
                 bodyToSend = json.encode(parsed);
@@ -63,12 +66,14 @@ class SyncService {
           await _db.removeSyncItem(id);
           continue;
         }
-        
+
         if (res.statusCode >= 200 && res.statusCode < 300) {
           try {
             final respJson = res.body.isNotEmpty ? json.decode(res.body) : null;
             int? parsedId;
-            if (localRef != null && respJson != null && endpoint.endsWith('/project1')) {
+            if (localRef != null &&
+                respJson != null &&
+                endpoint.endsWith('/project1')) {
               final serverId = respJson['acao_projeto_id'] ?? respJson['id'];
               if (serverId != null) {
                 if (serverId is int) {
@@ -88,7 +93,6 @@ class SyncService {
                   localRef != null &&
                   (res.statusCode == 201 || parsedId != null)) {
                 await _db.deleteDraftByLocalId(localRef);
-                // Remover projeto local da tabela projects se foi criado com sucesso
                 if (parsedId != null) {
                   await _db.removeLocalProject(localRef);
                 }
@@ -102,7 +106,8 @@ class SyncService {
 
           await _db.removeSyncItem(id);
         } else {
-          debugPrint('  ❌ Sync #$id falhou com status ${res.statusCode}: ${res.body}');
+          debugPrint(
+              '  ❌ Sync #$id falhou com status ${res.statusCode}: ${res.body}');
         }
       } catch (e) {
         debugPrint('  ❌ Erro de rede/parse no sync #$id: $e');

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 class BottomNavigation extends StatelessWidget {
   final String currentRoute;
@@ -40,20 +39,21 @@ class BottomNavigation extends StatelessWidget {
       },
     ];
 
+    final theme = Theme.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         border: Border(
           top: BorderSide(
-            color: Colors.white,
+            color: theme.dividerColor.withValues(alpha: 0.08),
             width: 1,
           ),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, -2),
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 6,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
@@ -72,11 +72,9 @@ class BottomNavigation extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          isActive
-                              ? route['activeIcon'] as IconData
-                              : route['icon'] as IconData,
+                          isActive ? route['activeIcon'] as IconData : route['icon'] as IconData,
                           size: 24,
-                          color: isActive ? AppTheme.primaryColor : const Color.fromARGB(255, 102, 102, 102),
+                          color: isActive ? theme.colorScheme.primary : theme.iconTheme.color?.withValues(alpha: 0.9),
                         ),
                         const SizedBox(height: 6),
                         Text(
@@ -84,7 +82,7 @@ class BottomNavigation extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                            color: isActive ? AppTheme.primaryColor : const Color.fromARGB(255, 104, 104, 104),
+                            color: isActive ? theme.colorScheme.primary : theme.textTheme.bodySmall?.color?.withValues(alpha: 0.9),
                           ),
                           textAlign: TextAlign.center,
                         ),

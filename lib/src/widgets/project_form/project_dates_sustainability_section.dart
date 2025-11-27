@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../controllers/create_project_controller.dart';
-import '../../theme/app_theme.dart';
 import '../common/form_field_builder.dart';
 
 class ProjectDatesAndSustainabilitySection extends StatelessWidget {
@@ -70,34 +69,33 @@ class ProjectDatesAndSustainabilitySection extends StatelessWidget {
   }
 
   Widget _buildSectionCard(String title, List<Widget> children) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
+    return Builder(builder: (context) {
+      final theme = Theme.of(context);
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          ),
-          ...children,
-        ],
-      ),
-    );
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w700),
+            ),
+            ...children,
+          ],
+        ),
+      );
+    });
   }
 }

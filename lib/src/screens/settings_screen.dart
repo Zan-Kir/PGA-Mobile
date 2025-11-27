@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../services/auth_provider.dart';
-import '../theme/app_theme.dart';
+import '../services/theme_provider.dart';
 import '../widgets/bottom_navigation.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -15,7 +15,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
   bool _autoSaveEnabled = true;
   String _selectedLanguage = 'Português';
   double _fontSize = 16.0;
@@ -29,6 +28,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadAppVersion();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+      setState(() {
+        _fontSize = (themeProvider.fontScale) * 16.0;
+      });
+    });
   }
 
   Future<void> _loadAppVersion() async {
@@ -40,8 +45,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Configurações'),
       ),
@@ -50,7 +56,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Seção de Notificações
             _buildSection(
               title: 'Notificações',
               icon: Icons.notifications,
@@ -70,7 +75,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // Seção de Aparência
             _buildSection(
               title: 'Aparência',
               icon: Icons.palette,
@@ -78,11 +82,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SwitchListTile(
                   title: const Text('Modo escuro'),
                   subtitle: const Text('Usar tema escuro'),
-                  value: _darkModeEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _darkModeEnabled = value;
-                    });
+                  value: themeProvider.isDark,
+                  onChanged: (value) async {
+                    await themeProvider.setDark(value);
                   },
                 ),
                 ListTile(
@@ -90,17 +92,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: Text('${_fontSize.round()}px'),
                   trailing: SizedBox(
                     width: 200,
-                    child: Slider(
-                      value: _fontSize,
-                      min: 12,
-                      max: 24,
-                      divisions: 12,
-                      activeColor: AppTheme.primaryColor,
-                      onChanged: (value) {
-                        setState(() {
-                          _fontSize = value;
-                        });
-                      },
+                    child: Consumer<ThemeProvider>(
+                      builder: (context, themeProvider, _) => Slider(
+                        value: _fontSize,
+                        min: 12,
+                        max: 24,
+                        divisions: 12,
+                        activeColor: Theme.of(context).colorScheme.primary,
+                        onChanged: (value) async {
+                          setState(() {
+                            _fontSize = value;
+                          });
+                          final scale = (value / 16.0);
+                          await themeProvider.setFontScale(scale);
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -109,7 +115,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // Seção de Sistema
             _buildSection(
               title: 'Sistema',
               icon: Icons.settings,
@@ -137,7 +142,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // Seção de Conta
             _buildSection(
               title: 'Conta',
               icon: Icons.account_circle,
@@ -147,7 +151,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: const Text('Editar informações pessoais'),
                   leading: const Icon(Icons.person),
                   onTap: () {
-                    // Navegar para perfil
                   },
                 ),
                 ListTile(
@@ -155,7 +158,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: const Text('Modificar senha de acesso'),
                   leading: const Icon(Icons.lock),
                   onTap: () {
-                    // Navegar para alterar senha
                   },
                 ),
                 ListTile(
@@ -171,7 +173,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // Seção de Sobre
             _buildSection(
               title: 'Sobre',
               icon: Icons.info,
@@ -186,7 +187,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: const Text('Ler política de privacidade'),
                   leading: const Icon(Icons.privacy_tip),
                   onTap: () {
-                    // Abrir política de privacidade
                   },
                 ),
                 ListTile(
@@ -194,7 +194,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: const Text('Ler termos de uso'),
                   leading: const Icon(Icons.description),
                   onTap: () {
-                    // Abrir termos de uso
                   },
                 ),
               ],
@@ -202,13 +201,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // Seção de Informações da Instituição
             _buildSection(
               title: 'Instituição',
               icon: Icons.school,
               children: [
-                const Padding(
-                  padding: EdgeInsets.all(16),
+                Padding(
+                  padding: const EdgeInsets.all(16),
                   child: SizedBox(
                     width: double.infinity,
                     child: Column(
@@ -219,24 +217,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           'Sistema de Gestão de Projetos Acadêmicos',
                           style: TextStyle(
                             fontSize: 14,
-                            color: AppTheme.textSecondaryColor,
+                            color: Theme.of(context).textTheme.bodyMedium?.color,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           'Lumina Team \n© 2025 Todos os direitos reservados',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -250,7 +248,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
 
-      // Navegação inferior
       bottomNavigationBar: BottomNavigation(
         currentRoute: '/settings',
         onNavigate: (route) {
@@ -271,21 +268,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       children: [
         Row(
           children: [
-            Icon(icon, color: AppTheme.primaryColor),
+            Icon(icon, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 8),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimaryColor,
-              ),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
           ],
         ),
         const SizedBox(height: 16),
         Card(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
+          elevation: 2,
+          margin: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             children: children,
           ),
@@ -316,7 +313,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Icon(
                       isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                      color: isSelected ? AppTheme.primaryColor : Colors.grey,
+                      color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
                     ),
                     const SizedBox(width: 16),
                     Text(
@@ -324,7 +321,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected ? AppTheme.primaryColor : Colors.black87,
+                        color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
                       ),
                     ),
                   ],

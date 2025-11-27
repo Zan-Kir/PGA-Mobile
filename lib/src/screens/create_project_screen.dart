@@ -93,36 +93,33 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        elevation: theme.appBarTheme.elevation ?? 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: theme.appBarTheme.iconTheme?.color ?? theme.iconTheme.color),
           onPressed: () => context.go('/projects'),
         ),
-        title: const Text(
+        title: Text(
           'Criar Novo Projeto',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          style: theme.appBarTheme.titleTextStyle ?? const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.clear_all, color: Colors.black),
+            icon: Icon(Icons.clear_all, color: theme.iconTheme.color),
             tooltip: 'Limpar formulário',
             onPressed: _handleClear,
           ),
           Container(
             margin: const EdgeInsets.only(right: 16),
-            child: const CircleAvatar(
-              backgroundColor: Colors.red,
+            child: CircleAvatar(
+              backgroundColor: theme.colorScheme.primary,
               child: Text(
                 'A',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -139,13 +136,13 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withValues(alpha: 0.1),
-                      spreadRadius: 1,
-                      blurRadius: 3,
+                      color: Colors.black.withValues(alpha: 0.04),
+                      spreadRadius: 0,
+                      blurRadius: 6,
                       offset: const Offset(0, 1),
                     ),
                   ],
@@ -153,21 +150,14 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Criar Novo Projeto',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                      style: theme.textTheme.titleLarge?.copyWith(fontSize: 24, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       _controller.selectedThematicAxis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
+                      style: theme.textTheme.bodyMedium,
                     ),
                   ],
                 ),
@@ -197,14 +187,14 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: _controller.isLoading ? null : _handleSubmit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                        onPressed: _controller.isLoading ? null : _handleSubmit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: theme.colorScheme.onPrimary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                      ),
                       child: _controller.isLoading
                           ? const SizedBox(
                               height: 20,
@@ -238,7 +228,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                         }
                       },
                       style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.blueGrey[100],
+                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),

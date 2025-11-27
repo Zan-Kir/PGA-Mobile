@@ -44,18 +44,23 @@ class CustomFormFields {
     TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      maxLines: maxLines,
-      keyboardType: keyboardType,
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hintText,
-        border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-      ),
-    );
+    return Builder(builder: (context) {
+      final theme = Theme.of(context);
+      return TextFormField(
+        controller: controller,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hintText,
+          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          filled: theme.inputDecorationTheme.filled,
+          fillColor: theme.inputDecorationTheme.fillColor,
+        ),
+      );
+    });
   }
 
   static Widget buildDropdownField(
@@ -76,66 +81,71 @@ class CustomFormFields {
       return text.length > 35;
     }
 
-    return DropdownButtonFormField<String>(
-      initialValue: effectiveValue,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hintText,
-        border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-      ),
-      items: uniqueItems.map((item) {
-        return DropdownMenuItem(
-          value: item,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 280),
-            child: Text(
-              item,
-              maxLines: null,
-              softWrap: true,
-              overflow: TextOverflow.visible,
-            ),
-          ),
-        );
-      }).toList(),
-      onChanged: enabled ? onChanged : null,
-      isExpanded: true,
-      menuMaxHeight: 300,
-      dropdownColor: Colors.white,
-      icon: const Icon(Icons.arrow_drop_down),
-      iconEnabledColor: enabled ? Colors.grey[600] : Colors.grey[400],
-      style: TextStyle(
-        color: enabled ? Colors.black87 : Colors.grey[600],
-        fontSize: 16,
-      ),
-      isDense: false,
-      selectedItemBuilder: (BuildContext context) {
-        return uniqueItems.map<Widget>((String item) {
-          final bool isLongText = needsMultipleLines(item);
-          
-          return Container(
-            constraints: BoxConstraints(
-              minHeight: isLongText ? 56 : 24,
-            ),
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 32),
+    return Builder(builder: (context) {
+      final theme = Theme.of(context);
+      return DropdownButtonFormField<String>(
+        initialValue: effectiveValue,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hintText,
+          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          filled: theme.inputDecorationTheme.filled,
+          fillColor: theme.inputDecorationTheme.fillColor,
+        ),
+        items: uniqueItems.map((item) {
+          return DropdownMenuItem(
+            value: item,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 280),
               child: Text(
                 item,
-                maxLines: isLongText ? 2 : 1,
+                maxLines: null,
                 softWrap: true,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: enabled ? Colors.black87 : Colors.grey[600],
-                  fontSize: 16,
-                  height: 1.3,
-                ),
+                overflow: TextOverflow.visible,
               ),
             ),
           );
-        }).toList();
-      },
-    );
+        }).toList(),
+        onChanged: enabled ? onChanged : null,
+        isExpanded: true,
+        menuMaxHeight: 300,
+        dropdownColor: theme.colorScheme.surface,
+        icon: const Icon(Icons.arrow_drop_down),
+        iconEnabledColor: enabled ? theme.iconTheme.color : theme.disabledColor,
+        style: TextStyle(
+          color: enabled ? theme.textTheme.bodyMedium?.color : theme.disabledColor,
+          fontSize: 16,
+        ),
+        isDense: false,
+        selectedItemBuilder: (BuildContext context) {
+          return uniqueItems.map<Widget>((String item) {
+            final bool isLongText = needsMultipleLines(item);
+
+            return Container(
+              constraints: BoxConstraints(
+                minHeight: isLongText ? 56 : 24,
+              ),
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 32),
+                child: Text(
+                  item,
+                  maxLines: isLongText ? 2 : 1,
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: enabled ? theme.textTheme.bodyMedium?.color : theme.disabledColor,
+                    fontSize: 16,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            );
+          }).toList();
+        },
+      );
+    });
   }
 
   static Widget buildDropdownFieldFromMaps(
@@ -152,69 +162,74 @@ class CustomFormFields {
       return text.length > 35;
     }
 
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hintText,
-        border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-      ),
-      items: items.map<DropdownMenuItem<String>>((item) {
-        final displayText = getDisplayText(item);
-        final itemValue = getValue(item);
-        return DropdownMenuItem<String>(
-          value: itemValue,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 280),
-            child: Text(
-              displayText,
-              maxLines: null,
-              softWrap: true,
-              overflow: TextOverflow.visible,
-            ),
-          ),
-        );
-      }).toList(),
-      onChanged: enabled ? onChanged : null,
-      isExpanded: true,
-      menuMaxHeight: 300,
-      dropdownColor: Colors.white,
-      icon: const Icon(Icons.arrow_drop_down),
-      iconEnabledColor: enabled ? Colors.grey[600] : Colors.grey[400],
-      style: TextStyle(
-        color: enabled ? Colors.black87 : Colors.grey[600],
-        fontSize: 16,
-      ),
-      isDense: false,
-      selectedItemBuilder: (BuildContext context) {
-        return items.map<Widget>((item) {
+    return Builder(builder: (context) {
+      final theme = Theme.of(context);
+      return DropdownButtonFormField<String>(
+        initialValue: value,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hintText,
+          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          filled: theme.inputDecorationTheme.filled,
+          fillColor: theme.inputDecorationTheme.fillColor,
+        ),
+        items: items.map<DropdownMenuItem<String>>((item) {
           final displayText = getDisplayText(item);
-          final bool isLongText = needsMultipleLines(displayText);
-          
-          return Container(
-            constraints: BoxConstraints(
-              minHeight: isLongText ? 56 : 24,
-            ),
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 32),
+          final itemValue = getValue(item);
+          return DropdownMenuItem<String>(
+            value: itemValue,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 280),
               child: Text(
                 displayText,
-                maxLines: 2,
+                maxLines: null,
                 softWrap: true,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: enabled ? Colors.black87 : Colors.grey[600],
-                  fontSize: 16,
-                  height: 1.3,
-                ),
+                overflow: TextOverflow.visible,
               ),
             ),
           );
-        }).toList();
-      },
-    );
+        }).toList(),
+        onChanged: enabled ? onChanged : null,
+        isExpanded: true,
+        menuMaxHeight: 300,
+        dropdownColor: theme.colorScheme.surface,
+        icon: const Icon(Icons.arrow_drop_down),
+        iconEnabledColor: enabled ? theme.iconTheme.color : theme.disabledColor,
+        style: TextStyle(
+          color: enabled ? theme.textTheme.bodyMedium?.color : theme.disabledColor,
+          fontSize: 16,
+        ),
+        isDense: false,
+        selectedItemBuilder: (BuildContext context) {
+          return items.map<Widget>((item) {
+            final displayText = getDisplayText(item);
+            final bool isLongText = needsMultipleLines(displayText);
+
+            return Container(
+              constraints: BoxConstraints(
+                minHeight: isLongText ? 56 : 24,
+              ),
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 32),
+                child: Text(
+                  displayText,
+                  maxLines: 2,
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: enabled ? theme.textTheme.bodyMedium?.color : theme.disabledColor,
+                    fontSize: 16,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            );
+          }).toList();
+        },
+      );
+    });
   }
 
   static Widget buildCurrencyField(
@@ -223,18 +238,23 @@ class CustomFormFields {
     String? hintText,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      inputFormatters: [CurrencyInputFormatter()],
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hintText ?? 'R\$ 0,00',
-        border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-      ),
-    );
+    return Builder(builder: (context) {
+      final theme = Theme.of(context);
+      return TextFormField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        inputFormatters: [CurrencyInputFormatter()],
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hintText ?? 'R\$ 0,00',
+          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          filled: theme.inputDecorationTheme.filled,
+          fillColor: theme.inputDecorationTheme.fillColor,
+        ),
+      );
+    });
   }
 
   static Widget buildDateField(
@@ -243,6 +263,7 @@ class CustomFormFields {
     BuildContext context,
     Function(DateTime) onDateSelected,
   ) {
+    final theme = Theme.of(context);
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
@@ -251,7 +272,7 @@ class CustomFormFields {
         border: const OutlineInputBorder(),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
         suffixIcon: IconButton(
-          icon: const Icon(Icons.calendar_today),
+          icon: Icon(Icons.calendar_today, color: theme.iconTheme.color),
           onPressed: () async {
             final DateTime? picked = await showDatePicker(
               context: context,
@@ -267,6 +288,8 @@ class CustomFormFields {
             }
           },
         ),
+        filled: theme.inputDecorationTheme.filled,
+        fillColor: theme.inputDecorationTheme.fillColor,
       ),
       readOnly: true,
     );

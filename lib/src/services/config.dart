@@ -1,7 +1,7 @@
 // Configurações centralizadas da aplicação
 class AppConfig {
   // URL base do backend
-  static const String baseUrl = 'http://192.168.0.244:3000';
+  static const String baseUrl = 'http://192.168.50.54:3000';
   
   // Endpoints da API
   static const String loginEndpoint = '$baseUrl/auth/login';

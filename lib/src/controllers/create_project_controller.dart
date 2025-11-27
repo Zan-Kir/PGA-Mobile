@@ -8,10 +8,8 @@ import '../services/sync_service.dart';
 import 'package:http/http.dart' as http;
 
 class CreateProjectController extends ChangeNotifier {
-  // Form key
   final formKey = GlobalKey<FormState>();
 
-  // Controllers
   final nameController = TextEditingController();
   final descriptionController = TextEditingController();
   final justificationController = TextEditingController();
@@ -21,7 +19,6 @@ class CreateProjectController extends ChangeNotifier {
   final costController = TextEditingController();
   final resourceSourceController = TextEditingController();
 
-  // State variables
   String _selectedThematicAxis = '';
   String _selectedProjectId = '';
   String _selectedYear = '';
@@ -73,20 +70,17 @@ class CreateProjectController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Mappings
   final Map<String, int> eixoNameToId = {};
   final Map<String, int> temaNameToId = {};
   final Map<String, int> priorityNameToId = {};
   final List<String> pgaOptions = [];
   final Map<String, Map<String, dynamic>> pgaByYear = {};
 
-  // Dynamic lists
   final List<Map<String, dynamic>> responsiblePeople = [];
   final List<Map<String, dynamic>> collaborators = [];
   final List<Map<String, dynamic>> projectSteps = [];
   final List<Map<String, dynamic>> problemSituations = [];
 
-  // Options
   final List<String> thematicAxisOptions = [];
   final List<String> projectIdOptions = [];
   final List<String> priorityOptions = [];
@@ -279,7 +273,7 @@ class CreateProjectController extends ChangeNotifier {
         final List<String> opts = [];
         for (final item in data) {
           final numero = item['numero']?.toString() ?? '';
-          final nome = item['nome'] ?? item['descricao'] ?? 'Eixo';
+          final nome = item['nome'] ?? item['nome_eixo'] ?? item['descricao'] ?? 'Eixo';
           final display = numero.isNotEmpty ? '${numero.padLeft(2, '0')} - $nome' : nome;
           opts.add(display);
           final eixoId = toInt(item['eixo_id']) ?? toInt(item['id']);

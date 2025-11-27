@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import 'package:go_router/go_router.dart';
-import '../theme/app_theme.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/project_card.dart';
 import '../widgets/bottom_navigation.dart';
@@ -15,7 +15,6 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   String _activeTab = 'overview';
 
-  // Dados mockados
   final List<Map<String, dynamic>> _mockStats = [
     {'title': 'Total de Projetos', 'value': '12', 'icon': '📊', 'color': const Color(0xFF4CAF50)},
     {'title': 'Em Andamento', 'value': '8', 'icon': '🚀', 'color': const Color(0xFF2196F3)},
@@ -51,85 +50,94 @@ class _DashboardScreenState extends State<DashboardScreen> {
   ];
 
   Widget _buildOverview() {
+    final textScale = MediaQuery.of(context).textScaler.scale(1.0);
+    final effectiveScale = math.min(1.0, textScale);
     return Column(
       children: [
-        // Cards de Estatísticas
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
-          ),
-          itemCount: _mockStats.length,
-          itemBuilder: (context, index) {
-            final stat = _mockStats[index];
-            return StatsCard(
-              title: stat['title'],
-              value: stat['value'],
-              icon: stat['icon'],
-              color: stat['color'],
-            );
-          },
-        ),
+        LayoutBuilder(builder: (context, constraints) {
+          final width = constraints.maxWidth;
 
-        const SizedBox(height: 24),
+          final crossAxisCount = width > 1100 ? 4 : 2;
+          final baseRatio = width > 600 ? 1.05 : 1.0;
+          final scaleFactor = 1.0 + (1.0 - textScale ) * 2;
+          final childAspectRatio = (baseRatio * scaleFactor).clamp(1.0, 2.0);
+          final gridSpacing = (12 * effectiveScale).clamp(4.0, 18.0);
 
-        // Card da Instituição
-        Card(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppTheme.primaryColor, AppTheme.secondaryColor],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: gridSpacing,
+              mainAxisSpacing: gridSpacing,
+              childAspectRatio: childAspectRatio,
+            ),
+            itemCount: _mockStats.length,
+            itemBuilder: (context, index) {
+              final stat = _mockStats[index];
+              return StatsCard(
+                title: stat['title'],
+                value: stat['value'],
+                icon: stat['icon'],
+                color: stat['color'],
+              );
+            },
+          );
+        }),
+
+        SizedBox(height: (24 * effectiveScale).clamp(6.0, 40.0)),
+
+        Builder(builder: (ctx) {
+          final theme = Theme.of(ctx);
+          return Card(
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.all(20),
-            child: const Column(
-              children: [
-                Text(
-                  'IDENTIFICAÇÃO DA UNIDADE',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.left,
-                ),
-                SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+              padding: EdgeInsets.all(20 * effectiveScale),
+              child: LayoutBuilder(builder: (c2, cons) {
+                final maxW = cons.maxWidth;
+                final itemWidth = math.min((maxW - 32) / 3, 260.0);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _InfoItem(label: 'Código', value: 'F301'),
-                    _InfoItem(label: 'Unidade', value: 'Fatec Votorantim'),
-                    _InfoItem(label: 'Diretor(a)', value: 'Prof. Dr. Mauro Tomazela'),
+                    Text(
+                      'IDENTIFICAÇÃO DA UNIDADE',
+                      style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.left,
+                    ),
+                    SizedBox(height: 20 * effectiveScale),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.spaceBetween,
+                      children: [
+                        SizedBox(width: itemWidth, child: const _InfoItem(label: 'Código', value: 'F301')),
+                        SizedBox(width: itemWidth, child: const _InfoItem(label: 'Unidade', value: 'Fatec Votorantim')),
+                        SizedBox(width: itemWidth, child: const _InfoItem(label: 'Diretor(a)', value: 'Prof. Dr. Mauro Tomazela')),
+                      ],
+                    ),
                   ],
-                ),
-              ],
+                );
+              }),
             ),
-          ),
-        ),
+          );
+        }),
 
-        const SizedBox(height: 24),
+        SizedBox(height: (24 * effectiveScale).clamp(6.0, 40.0)),
 
-        // Projetos em Destaque
-        const Align(
+        Align(
           alignment: Alignment.centerLeft,
-          child: Text(
-            'Projetos em Destaque',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimaryColor,
-            ),
-          ),
+          child: Text('Projetos em Destaque', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
         ),
 
-        const SizedBox(height: 16),
+        SizedBox(height: (16 * effectiveScale).clamp(6.0, 24.0)),
 
         ..._mockProjects.take(2).map((project) => Padding(
           padding: const EdgeInsets.only(bottom: 12),
@@ -145,17 +153,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildProjects() {
     return Column(
       children: [
-        const Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            'Todos os Projetos',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimaryColor,
-            ),
-          ),
-        ),
+        Align(alignment: Alignment.centerLeft, child: Text('Todos os Projetos', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold))),
 
         const SizedBox(height: 16),
 
@@ -173,13 +171,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Dashboard PGA 2025'),
       ),
       body: Column(
         children: [
-          // Tabs
           Container(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -188,12 +185,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: ElevatedButton(
                     onPressed: () => setState(() => _activeTab = 'overview'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _activeTab == 'overview' 
-                          ? AppTheme.primaryColor 
-                          : Colors.white,
-                      foregroundColor: _activeTab == 'overview' 
-                          ? Colors.white 
-                          : AppTheme.primaryColor,
+                      backgroundColor: _activeTab == 'overview' ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surface,
+                      foregroundColor: _activeTab == 'overview' ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
                     ),
                     child: const Text('Visão Geral'),
                   ),
@@ -203,12 +196,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: ElevatedButton(
                     onPressed: () => setState(() => _activeTab = 'projects'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _activeTab == 'projects' 
-                          ? AppTheme.primaryColor 
-                          : const Color.fromARGB(255, 255, 255, 255),
-                      foregroundColor: _activeTab == 'projects' 
-                          ? Colors.white 
-                          : AppTheme.primaryColor,
+                      backgroundColor: _activeTab == 'projects' ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surface,
+                      foregroundColor: _activeTab == 'projects' ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
                     ),
                     child: const Text('Projetos'),
                   ),
@@ -217,7 +206,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
 
-          // Conteúdo
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -227,16 +215,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
 
-      // FAB para criar projeto
-      /* floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go('/create-project'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Novo Projeto'),
-      ),*/
-
-      // Navegação inferior
       bottomNavigationBar: BottomNavigation(
         currentRoute: '/dashboard',
         onNavigate: (route) {
@@ -257,23 +235,20 @@ class _InfoItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.white70,
-          ),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.85)),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimary),
           textAlign: TextAlign.left,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          softWrap: true,
         ),
       ],
     );
