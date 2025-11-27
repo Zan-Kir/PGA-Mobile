@@ -2,12 +2,12 @@
 
 Sistema de Gestão de Projetos Acadêmicos da Fatec Votorantim convertido para Flutter.
 
-## 🚀 **Conversão Completa**
+## 🚀 **Uma nova forma de usar o sistema PGA**
 
-Este projeto foi convertido de **React Native** para **Flutter** mantendo:
+Este projeto foi feito em **Flutter** para se adequar ao site do **PGA** mantendo:
 - ✅ **Layout idêntico** - Mesma aparência visual
-- ✅ **Funcionalidades** - Todas as features implementadas
-- ✅ **Navegação** - Mesma estrutura de rotas
+- ✅ **Funcionalidades** - Todas as funcionalidades principais implementadas
+- ✅ **Navegação** - Mesma estrutura de menus
 - ✅ **Tema** - Cores e estilos da Fatec Votorantim
 - ✅ **Lógica de negócio** - Validações e comportamentos
 
@@ -20,46 +20,98 @@ Este projeto foi convertido de **React Native** para **Flutter** mantendo:
 - **Configurações** - Preferências do usuário
 - **Navegação** - Barra inferior funcional
 
-## 🛠️ **Tecnologias**
-
-- **Flutter** 3.0+
-- **Dart** 3.0+
-- **Go Router** - Navegação
-- **Provider** - Gerenciamento de estado
-- **Material Design 3** - Interface moderna
-
 ## 📋 **Pré-requisitos**
 
 1. **Flutter SDK** instalado
 2. **Android Studio** ou **VS Code**
 3. **Emulador Android** ou **iOS Simulator**
-4. **Git** para clonar o projeto
 
 ## 🚀 **Como Executar**
 
-### 1. **Instalar Dependências**
-```bash
-flutter pub get
-```
+Passos básicos para desenvolver, testar e empacotar o app.
 
-### 2. **Verificar Configuração**
+1) Preparar o projeto
+
 ```bash
+# instalar dependências
+flutter pub get
+
+# checar ambiente (Android SDK, Xcode quando aplicável)
 flutter doctor
 ```
 
-### 3. **Executar o Projeto**
+2) Gerar ícones (se alterar `assets/icons/app_icon.png`)
+
+```bash
+flutter pub get
+flutter pub run flutter_launcher_icons:main
+```
+
+3) Atualizar nome nativo (opcional)
+
+```powershell
+# Windows (wrapper .bat)
+.\tools\update_app_name.bat "Nome do App"
+
+# Ou chamar o PowerShell script diretamente
+powershell -NoProfile -ExecutionPolicy Bypass -File "tools\update_app_name.ps1" -NewName "Nome do App"
+```
+
+4) Rodar em modo de desenvolvimento
+
+- Emulador Android / dispositivo USB:
 ```bash
 flutter run
 ```
 
-### 4. **Build para Produção**
+- Para listar dispositivos e escolher um específico:
 ```bash
-# Android APK
-flutter build apk
-
-# iOS
-flutter build ios
+flutter devices
+flutter run -d <deviceId>
 ```
+
+- iOS Simulator / dispositivo (necessita macOS + Xcode):
+```bash
+flutter run -d ios
+```
+
+5) Build para produção
+
+- Android APK (debug/release):
+```bash
+# build debug (rápido)
+flutter build apk --debug
+
+# build release (assinatura/keystore requerida para publicar)
+flutter build apk --release
+```
+
+- Android App Bundle (recomendado para Play Store):
+```bash
+flutter build appbundle --release
+```
+
+- iOS (macOS + Xcode necesario):
+```bash
+flutter build ipa
+```
+
+6) Testes e lint
+
+```bash
+# rodar testes unitários/widget
+flutter test
+
+# checar lints
+flutter analyze
+```
+
+7) Observações práticas
+
+- Se atualizar dependências execute `flutter pub get` e rode um build para checar regressões.
+- Para ver o novo nome no launcher Android, normalmente é necessário desinstalar a versão anterior do aparelho/emulador e instalar a nova APK.
+- iOS só é testável em dispositivos/simula­dores quando estiver em macOS com Xcode instalado.
+- Se sua configuração usar flavors ou builds customizados, ajuste os comandos de build conforme seus `build.gradle` e `xcconfig`.
 
 ## 📁 **Estrutura do Projeto**
 
@@ -135,6 +187,37 @@ lib/
 - `ios/Runner/Info.plist` - Configurações do iOS
 - `ios/Runner.xcodeproj` - Projeto Xcode
 
+### **Atualizar icone**
+- `flutter pub run flutter_launcher_icons:main` - Atualiza o icone do Aplicativo
+
+## 🧰 Comandos úteis (Windows)
+
+Se você precisar atualizar o nome nativo do aplicativo (Android/iOS) a partir do projeto Flutter, use o script fornecido em `tools/`.
+
+- Usando o wrapper `.bat` (PowerShell ou cmd, a partir da raiz do projeto):
+```powershell
+.\tools\update_app_name.bat "Meu App PGA"
+# ou usando a flag -NewName
+.\tools\update_app_name.bat -NewName "Meu App PGA"
+```
+
+- Chamando o PowerShell script diretamente (caso prefira evitar o .bat):
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "c:\Users\muril\Documents\PGA-Mobile\tools\update_app_name.ps1" -NewName "Meu App PGA"
+```
+
+Notas:
+- Sempre rode o comando a partir da raiz do projeto (paths relativos esperados).
+- Coloque o nome entre aspas se ele contiver espaços ou caracteres especiais.
+- O script atualiza todos os arquivos `android/app/src/main/res/values*/strings.xml` e o `ios/Runner/Info.plist`.
+- Depois de alterar `strings.xml`, desinstale e reinstale (uninstall/reinstall) o app no dispositivo/emulador para ver o novo nome no launcher.
+
+Atualizar ícones:
+```powershell
+flutter pub get
+flutter pub run flutter_launcher_icons:main
+```
+
 ## 📊 **Dados Mockados**
 
 O projeto inclui dados de exemplo para demonstração:
@@ -143,23 +226,40 @@ O projeto inclui dados de exemplo para demonstração:
 - **Usuários** fictícios
 - **Datas** futuras
 
+## 🛠️ **Tecnologias e bibliotecas principais**
+
+- **Flutter**(SDK) — framework UI para construir a aplicação mobile.
+- **Dart** (linguagem) — linguagem usada pelo Flutter.
+- **Go Router** (^12.1.3) — roteamento declarativo e gerenciamento de rotas.
+- **Provider** (^6.1.1) — injeção de dependência e gerenciamento simples de estado.
+- **Flutter Localizations** (SDK) — suporte a internacionalização/localização da UI.
+- **Cupertino Icons** (^1.0.2) — ícones estilo iOS.
+- **Shared Preferences** (^2.2.2) — armazenamento simples de preferências locais.
+- **Flutter Secure Storage** (^8.0.0) — armazenamento seguro para tokens/segredos.
+- **Sqflite** (^2.2.8+4) — banco de dados SQLite local para persistência estruturada.
+- **Connectivity Plus** (^4.0.2) — detecção de conectividade de rede.
+- **http** (^1.1.0) — cliente HTTP para chamadas à API.
+- **Image Picker** (^1.0.4) — seleção de imagens da galeria ou câmera.
+- **Path Provider** (^2.1.1) & path (^1.8.3) — resolver paths do sistema e utilitários de caminho.
+- **Flutter SVG** (^2.0.9) — renderização de imagens SVG.
+- **FL Chart** (^0.65.0) — gráficos e visualizações (charts).
+
+- **Dev**: 
+- **Flutter Test** (SDK) — testes unitários/widget;
+- **Flutter Lints** (^3.0.0) — regras de lint; 
+- **Flutter Launcher Icons** (^0.14.4) — geração de ícones nativos.
+
+## 🚀 **Em Desenvolvimento**
+1. **Integração Backend** - API REST
+2. **Sistema de Autenticação com refresh token** - JWT
+3. **Banco de dados local para uso offline** - SQLite
+
 ## 🚀 **Próximos Passos**
 
-Para produção, considere:
-1. **Backend real** - API REST ou GraphQL
-2. **Autenticação** - JWT, OAuth, etc.
-3. **Banco de dados** - SQLite local + sincronização
-4. **Notificações push** - Firebase Cloud Messaging
-5. **Testes** - Unit, Widget, Integration
-6. **CI/CD** - GitHub Actions, Fastlane
-
-## 📝 **Notas da Conversão**
-
-- **React Native** → **Flutter**: Componentes convertidos para Widgets
-- **Navigation** → **Go Router**: Sistema de roteamento moderno
-- **StyleSheet** → **ThemeData**: Sistema de temas nativo
-- **useState** → **StatefulWidget**: Gerenciamento de estado
-- **LinearGradient** → **Container + BoxDecoration**: Gradientes nativos
+Próximas implementações:
+1. **CI/CD** - GitHub Actions, Fastlane
+2. **Notificações push** - Firebase Cloud Messaging
+3. **Testes** - Unit, Widget, Integration
 
 ## 🤝 **Contribuição**
 
@@ -174,6 +274,6 @@ Para produção, considere:
 Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
 
 ## 👨‍💻 **Desenvolvido por**
-
+Lumina Team
 Sistema de Gestão de Projetos Acadêmicos - Fatec Votorantim
 © 2025 Todos os direitos reservados

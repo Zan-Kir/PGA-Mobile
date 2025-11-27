@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+// ...existing imports...
+import 'package:provider/provider.dart';
+import '../services/auth_provider.dart';
+import '../services/config.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -30,15 +36,84 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    // Simular login
-    await Future.delayed(const Duration(milliseconds: 1500));
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
 
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-      context.go('/dashboard');
+    try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final url = Uri.parse(AppConfig.loginEndpoint);
+      final res = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'senha': password}),
+      );
+
+      if (res.statusCode == 201 || res.statusCode == 200) {
+        final body = res.body.isNotEmpty ? jsonDecode(res.body) : null;
+        final token = body != null && body['access_token'] != null ? body['access_token'] : body?['token'];
+        final refresh = body != null && body['refresh_token'] != null ? body['refresh_token'] : null;
+        if (token != null) {
+          // use AuthProvider to persist tokens and fetch user
+          await auth.setToken(token as String, refresh: refresh as String?);
+          try {
+            final meRes = await http.get(Uri.parse(AppConfig.meEndpoint), headers: {'Authorization': 'Bearer $token'});
+            if (meRes.statusCode == 200) {
+              final userObj = jsonDecode(meRes.body) as Map<String, dynamic>;
+              await auth.setToken(token, refresh: refresh, userData: userObj);
+            }
+          } catch (_) {}
+
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          context.go('/dashboard');
+          return;
+        }
+      }
+      
+      if (!mounted) return;
+      final startOffline = await _showOfflinePrompt('Nome de usuário ou senha inválidos');
+      if (!mounted) return;
+      
+      setState(() => _isLoading = false);
+      if (startOffline) {
+        context.go('/dashboard');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final startOffline = await _showOfflinePrompt(
+          'Não foi possível conectar ao servidor');
+      if (!mounted) return;
+      
+      setState(() => _isLoading = false);
+      if (startOffline) {
+        context.go('/dashboard');
+      }
     }
+  }
+
+  Future<bool> _showOfflinePrompt(String reason) async {
+    if (!mounted) return false;
+    
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Iniciar modo offline?'),
+            content: Text(
+                '$reason. Deseja iniciar no modo offline?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Iniciar offline'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   @override
@@ -53,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
           ),
           child: SafeArea(
             child: SingleChildScrollView(
@@ -63,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 60),
-                    
+
                     // Logo e Título
                     Column(
                       children: [
@@ -145,7 +220,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 prefixIcon: const Icon(Icons.lock),
                                 suffixIcon: IconButton(
                                   icon: Icon(
-                                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                    _obscurePassword
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
                                   ),
                                   onPressed: () {
                                     setState(() {
@@ -175,7 +252,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                         width: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  Colors.white),
                                         ),
                                       )
                                     : const Text('Entrar'),

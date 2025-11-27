@@ -1,7 +1,7 @@
 <br id="topo">
 <div align="center">
   
-![banner](https://github.com/julinhaarte/PGA-Mobile/blob/main/assets/images/PGA.png)
+![banner](https://github.com/Zan-Kir/PGA-Mobile/blob/main/assets/images/PGA.png)
 
 </div>
 
@@ -160,12 +160,12 @@
    <summary>Clique aqui para visualizar as telas do App</summary>
     <br>
     <div align="center">
-    <img src="https://github.com/julinhaarte/PGA-Mobile/blob/main/assets/images/Screenshot_1756767204.png" width="15%">
-    <img src="https://github.com/julinhaarte/PGA-Mobile/blob/main/assets/images/Screenshot_1756767220.png" width="15%"> 
-    <img src="https://github.com/julinhaarte/PGA-Mobile/blob/main/assets/images/Screenshot_1756767237.png" width="15%">
-    <img src="https://github.com/julinhaarte/PGA-Mobile/blob/main/assets/images/Screenshot_1756767244.png" width="15%">
-    <img src="https://github.com/julinhaarte/PGA-Mobile/blob/main/assets/images/Screenshot_1756767249.png" width="15%">
-    <img src="https://github.com/julinhaarte/PGA-Mobile/blob/main/assets/images/Screenshot_1756767266.png" width="15%">
+    <img src="https://github.com/Zan-Kir/PGA-Mobile/blob/main/assets/images/Screenshot_1756767204.png" width="15%">
+    <img src="https://github.com/Zan-Kir/PGA-Mobile/blob/main/assets/images/Screenshot_1756767220.png" width="15%"> 
+    <img src="https://github.com/Zan-Kir/PGA-Mobile/blob/main/assets/images/Screenshot_1756767237.png" width="15%">
+    <img src="https://github.com/Zan-Kir/PGA-Mobile/blob/main/assets/images/Screenshot_1756767244.png" width="15%">
+    <img src="https://github.com/Zan-Kir/PGA-Mobile/blob/main/assets/images/Screenshot_1756767249.png" width="15%">
+    <img src="https://github.com/Zan-Kir/PGA-Mobile/blob/main/assets/images/Screenshot_1756767266.png" width="15%">
     </div>
 </details>
 
